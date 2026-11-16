@@ -60,7 +60,7 @@
   ],
   "scripts": {
     "dev": "bun --bun x vite",
-    "build": "bun run build:lib && bun run build:site",
+    "build": "bun run build:lib && bun run build:site && cp dist/goblins.js dist/embed.html dist/embed.js dist/embed.css dist/goblins.schema.json dist-site/",
     "build:lib": "bun --bun scripts/build-lib.ts",
     "build:site": "bun --bun x tsc && bun --bun x vite build",
     "test": "bun test",
