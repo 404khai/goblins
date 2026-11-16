@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import * as THREE from "three";
 import { buildGoblin, disposeRig } from "./build";
 import { animate } from "./expressions";
+import { Morpher, type MorphId } from "./morph";
 import { goblinSvg, type SvgOptions } from "./svg";
 import type { ExpressionId, Goblin } from "./types";
 
@@ -14,11 +15,13 @@ export function GoblinAvatar({ goblin, expression, size = 96, className, style, 
 }
 
 /** Live 3D goblin with the animated expression. One WebGL canvas per instance. */
-export function Goblin3D({ goblin, expression, size = 240, className, style, framing = "full" }: Common & { framing?: "full" | "head" }) {
+export function Goblin3D({ goblin, expression, morph, size = 240, className, style, framing = "full" }: Common & { framing?: "full" | "head"; morph?: MorphId | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const expr = useRef(expression ?? goblin.expression);
   expr.current = expression ?? goblin.expression;
-  const key = JSON.stringify({ ...goblin, expression: undefined, name: undefined });
+  const spell = useRef<MorphId | null>(null);
+  spell.current = morph !== undefined ? morph : goblin.morph ?? null;
+  const key = JSON.stringify({ ...goblin, expression: undefined, name: undefined, morph: undefined });
 
   useEffect(() => {
     const canvas = ref.current!;
@@ -51,13 +54,17 @@ export function Goblin3D({ goblin, expression, size = 240, className, style, fra
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const clock = new THREE.Clock();
     let raf = 0;
+    let morpher: Morpher | null = null;
     const tick = () => {
-      animate(rig, expr.current, clock.getElapsedTime(), pointer, reduce);
+      const t = clock.getElapsedTime();
+      animate(rig, expr.current, t, pointer, reduce);
+      if (spell.current && !morpher) morpher = new Morpher(rig, goblin);
+      if (morpher) { morpher.set(spell.current); morpher.update(t); }
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
     };
     tick();
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener("pointermove", move); disposeRig(rig); renderer.dispose(); };
+    return () => { cancelAnimationFrame(raf); morpher?.dispose(); ro.disconnect(); window.removeEventListener("pointermove", move); disposeRig(rig); renderer.dispose(); };
   }, [key, framing]);
 
   return <canvas ref={ref} className={className} style={{ width: size, height: size, display: "block", ...style }} aria-label={`${goblin.name}, 3D goblin`} />;

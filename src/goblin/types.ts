@@ -2,6 +2,8 @@ export type ExpressionId =
   | "idle" | "happy" | "laughing" | "love" | "wink" | "surprised" | "thinking" | "searching"
   | "confused" | "nervous" | "sad" | "angry" | "talking" | "sleeping" | "celebrate";
 
+import type { MorphId } from "./morph";
+
 export interface Goblin {
   id: string;
   name: string;
@@ -19,9 +21,11 @@ export interface Goblin {
   scarf: "none" | "wrap" | "long";
   scarfColor: string;
   extras: string[];
+  /** Optional spell: the goblin transforms into what it is doing. 3D only. */
+  morph?: MorphId | null;
 }
 
-type Trait = Exclude<keyof Goblin, "id" | "name" | "expression">;
+type Trait = Exclude<keyof Goblin, "id" | "name" | "expression" | "morph">;
 export interface Option { label: string; values: string[]; color?: boolean; multi?: boolean; dependsOn?: [Trait, string] }
 
 export const OPTIONS: Record<Trait, Option> = {

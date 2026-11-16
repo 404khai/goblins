@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { buildGoblin, disposeRig, type Rig } from "../goblin/build";
 import { animate } from "../goblin/expressions";
+import { Morpher } from "../goblin/morph";
 import type { Goblin } from "../goblin/types";
 
 export type View = "clan" | "closeup";
@@ -14,9 +15,9 @@ interface Props {
   onView: (v: View) => void;
 }
 
-interface Actor { rig: Rig; key: string; home: THREE.Vector3; spin: number }
+interface Actor { rig: Rig; key: string; home: THREE.Vector3; spin: number; morph?: Morpher }
 
-const traitKey = ({ name, expression, ...traits }: Goblin) => JSON.stringify(traits);
+const traitKey = ({ name, expression, morph, ...traits }: Goblin) => JSON.stringify(traits);
 
 export default function Stage({ clan, selected, view, onSelect, onView }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,7 +49,7 @@ export default function Stage({ clan, selected, view, onSelect, onView }: Props)
         const prev = actors[i];
         if (prev && prev.key === key) return prev;
         const rig = buildGoblin(g);
-        if (prev) { rig.root.position.copy(prev.rig.root.position); rig.root.rotation.y = prev.spin; scene.remove(prev.rig.root); disposeRig(prev.rig); }
+        if (prev) { prev.morph?.dispose(); rig.root.position.copy(prev.rig.root.position); rig.root.rotation.y = prev.spin; scene.remove(prev.rig.root); disposeRig(prev.rig); }
         rig.root.userData.idx = i;
         scene.add(rig.root);
         return { rig, key, home: prev?.home ?? new THREE.Vector3(), spin: prev?.spin ?? 0 };
@@ -194,6 +195,9 @@ export default function Stage({ clan, selected, view, onSelect, onView }: Props)
         a.rig.ring.visible = on;
         rel.set(THREE.MathUtils.clamp((point.x - root.position.x) / 6, -1, 1), THREE.MathUtils.clamp((point.y - root.position.y) / 6, -1, 1));
         animate(a.rig, clan[i].expression, t + i * 0.37, rel, reduce);
+        const spell = clan[i].morph ?? null;
+        if (spell && !a.morph) a.morph = new Morpher(a.rig, clan[i]);
+        if (a.morph) { a.morph.set(spell); a.morph.update(t); }
       });
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);

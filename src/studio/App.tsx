@@ -4,6 +4,7 @@ import { GoblinAvatar } from "../goblin/react";
 import { Nav } from "../site/Chrome";
 import Stage, { type View } from "./Stage";
 import { EXPRESSIONS, EXPRESSION_IDS } from "../goblin/expressions";
+import { MORPHS, MORPH_IDS, type MorphId } from "../goblin/morph";
 import { DEFAULT_CLAN, NAMES, OPTIONS, randomGoblin, type ExpressionId, type Goblin } from "../goblin/types";
 
 const STORE = "goblins.v2";
@@ -103,6 +104,24 @@ export default function App() {
             ))}
           </div>
           <p className="blurb">{EXPRESSIONS[g.expression].blurb}</p>
+        </div>
+
+        <div className="group">
+          <div className="grouphead">
+            <h2>Spell</h2>
+            <button type="button" className="link" onClick={() => setClan((c) => c.map((x) => ({ ...x, morph: g.morph ?? null })))}>
+              Everyone casts this
+            </button>
+          </div>
+          <div className="chips">
+            <button type="button" id="spell-none" className="chip" aria-pressed={!g.morph} onClick={() => update({ morph: null })}>None</button>
+            {MORPH_IDS.map((id: MorphId) => (
+              <button key={id} id={`spell-${id}`} type="button" className="chip spell" aria-pressed={g.morph === id} onClick={() => update({ morph: id })}>
+                {MORPHS[id].label}
+              </button>
+            ))}
+          </div>
+          <p className="blurb">{g.morph ? MORPHS[g.morph].blurb : "The goblin dissolves into its own colors and reforms as what it is doing."}</p>
         </div>
 
         {(Object.keys(OPTIONS) as (keyof typeof OPTIONS)[]).map((k) => {

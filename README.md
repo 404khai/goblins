@@ -40,6 +40,16 @@ import { Bramble } from "./Bramble";
 <Bramble expression="thinking" size={48} />
 ```
 
+## Spells
+
+A goblin can transform into what it's doing, the way an agent shows its state: it dissolves into particles of its own colors and reforms as a quill writing a scroll, a puzzle cube solving itself, an ear catching sound, a paper plane and more.
+
+```tsx
+<Goblin3D goblin={bramble} morph="writing" />
+```
+
+`writing` `sketching` `solving` `listening` `thinking` `orbit` `radar` `progress` `dictating` `sending` `receiving` `uploading` `bouncing` `alerting` `powering-down`
+
 ## Exports
 
 | Format | Function | Output |

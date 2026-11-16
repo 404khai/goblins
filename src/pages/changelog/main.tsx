@@ -21,6 +21,20 @@ type Entry = {
 const ENTRIES: Entry[] = [
   {
     date: "2026-11-16",
+    title: "Spells: goblins turn into their work",
+    tag: "Characters",
+    lede: "Like an agent showing its state, a goblin can dissolve into its own colors and reform as what it is doing.",
+    items: [
+      { title: "Fifteen spells", body: "Writing, sketching, solving, listening, thinking, orbit, radar, progress, speaking, sending, receiving, uploading, bouncing, alerting and powering down." },
+      { title: "Made of the goblin", body: "Particles are sampled from the goblin's surface, so the quill is its hat color and the puzzle cube wears its beard and skin." },
+      { title: "Rune circle", body: "A glowing circle turns under its feet while the spell holds, with twinkles riding the swarm in and out." },
+      { title: "Everywhere 3D goes", body: "Cast from the studio's Spell row, with the morph prop on Goblin3D, or with a Morpher on a raw rig. Goblins on the island cast them between moods." },
+    ],
+    art: "tulip",
+    cameo: [1, "thinking"],
+  },
+  {
+    date: "2026-11-16",
     title: "A home for the goblins",
     tag: "Site",
     lede: "The goblins moved onto a floating island, with docs, a changelog and four ways to take them home.",

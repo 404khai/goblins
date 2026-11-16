@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { buildGoblin, disposeRig, kit } from "../goblin/build";
 import { animate } from "../goblin/expressions";
+import { Morpher, type MorphId } from "../goblin/morph";
 import { DEFAULT_CLAN, type ExpressionId, type Goblin } from "../goblin/types";
 
 const { toon, flat, mesh, sphere } = kit;
@@ -111,14 +112,15 @@ function buildIsland(scene: THREE.Object3D, rand: () => number) {
   return { island, curve, flowers, flies };
 }
 
-const CAST: { idx: number; at: [number, number] | "walk"; cycle: ExpressionId[] }[] = [
+// "~name" in a cycle casts that spell for the beat
+const CAST: { idx: number; at: [number, number] | "walk"; cycle: (ExpressionId | `~${MorphId}`)[] }[] = [
   { idx: 0, at: [-4.2, -2.6], cycle: ["idle", "happy", "talking", "laughing"] },
-  { idx: 1, at: [-8.8, -0.8], cycle: ["thinking", "confused", "thinking", "wink"] },
+  { idx: 1, at: [-8.8, -0.8], cycle: ["thinking", "~writing", "wink", "~writing"] },
   { idx: 2, at: "walk", cycle: ["searching"] },
-  { idx: 4, at: [6.2, -3.4], cycle: ["sleeping", "sleeping", "surprised", "idle"] },
-  { idx: 3, at: [1.6, -4.8], cycle: ["celebrate", "happy", "love", "wink"] },
+  { idx: 4, at: [6.2, -3.4], cycle: ["sleeping", "~powering-down", "surprised", "idle"] },
+  { idx: 3, at: [1.6, -4.8], cycle: ["celebrate", "~solving", "happy", "~sketching"] },
   { idx: 6, at: [-1.4, 7.2], cycle: ["love", "happy", "idle", "talking"] },
-  { idx: 8, at: [9.6, 5.2], cycle: ["confused", "nervous", "surprised", "idle"] },
+  { idx: 8, at: [9.6, 5.2], cycle: ["~listening", "nervous", "~orbit", "idle"] },
 ];
 
 export function World({ clan = DEFAULT_CLAN }: { clan?: Goblin[] }) {
@@ -145,7 +147,7 @@ export function World({ clan = DEFAULT_CLAN }: { clan?: Goblin[] }) {
       if (c.at !== "walk") rig.root.position.set(c.at[0], GROUND + 2.25 * 0.62, c.at[1]);
       rig.root.rotation.y = c.at === "walk" ? 0 : -c.at[0] * 0.03;
       island.add(rig.root);
-      return { rig, c, phase: k * 1.7 };
+      return { rig, c, phase: k * 1.7, morph: c.cycle.some((x) => x.startsWith("~")) ? new Morpher(rig, clan[c.idx]) : null };
     });
 
     const pointer = new THREE.Vector2();
@@ -177,7 +179,9 @@ export function World({ clan = DEFAULT_CLAN }: { clan?: Goblin[] }) {
 
       for (const a of actors) {
         const { rig, c } = a;
-        let expr = c.cycle[Math.floor((t + a.phase) / 5) % c.cycle.length];
+        const beat = c.cycle[Math.floor((t + a.phase) / 6) % c.cycle.length];
+        const spell = beat.startsWith("~") ? (beat.slice(1) as MorphId) : null;
+        let expr: ExpressionId = spell ? "idle" : (beat as ExpressionId);
         if (c.at === "walk") {
           const u = (Math.sin(t * 0.06) + 1) / 2;
           const p = curve.getPointAt(u);
@@ -188,6 +192,7 @@ export function World({ clan = DEFAULT_CLAN }: { clan?: Goblin[] }) {
         }
         rel.set(pointer.x - rig.root.position.x / 14, pointer.y);
         animate(rig, expr, t + a.phase, rel, reduce);
+        if (a.morph) { a.morph.set(spell); a.morph.update(t); }
       }
       flowers.forEach((f) => (f.rotation.z = Math.sin(t * 1.4 + f.userData.sway) * 0.08));
       flies.forEach((f) => {
@@ -205,7 +210,7 @@ export function World({ clan = DEFAULT_CLAN }: { clan?: Goblin[] }) {
       cancelAnimationFrame(raf);
       ro.disconnect();
       window.removeEventListener("pointermove", move);
-      actors.forEach((a) => disposeRig(a.rig));
+      actors.forEach((a) => { a.morph?.dispose(); disposeRig(a.rig); });
       renderer.dispose();
     };
   }, [clan]);

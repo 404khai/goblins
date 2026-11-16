@@ -1,4 +1,6 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect, useState } from "react";
+import { MORPHS, MORPH_IDS, type MorphId } from "../../goblin/morph";
+import { Goblin3D } from "../../goblin/react";
 import { createRoot } from "react-dom/client";
 import { EXPRESSIONS, EXPRESSION_IDS } from "../../goblin/expressions";
 import { GoblinAvatar } from "../../goblin/react";
@@ -19,6 +21,44 @@ const EXPORTS = [
   { title: "JSON", body: "The goblin's recipe. Import it back into the studio or keep a clan in your repo.", code: `{ "hat": "gnome", "eyes": "visor", … }` },
   { title: "PNG", body: "A 1024px transparent image for chat apps, slides and profile pictures.", code: `await toPNG(bramble, 1024)` },
 ];
+
+function Spells() {
+  const [spell, setSpell] = useState<MorphId>("writing");
+  const [auto, setAuto] = useState(true);
+  const [who, setWho] = useState(2);
+  useEffect(() => {
+    if (!auto) return;
+    const id = setInterval(() => setSpell((s) => MORPH_IDS[(MORPH_IDS.indexOf(s) + 1) % MORPH_IDS.length]), 6500);
+    return () => clearInterval(id);
+  }, [auto]);
+  return (
+    <section className="sect spells">
+      <div className="spells-stage">
+        <Goblin3D goblin={DEFAULT_CLAN[who]} expression="idle" morph={spell} size="100%" />
+        <span className="spells-label mono">{DEFAULT_CLAN[who].name} is {MORPHS[spell].label.toLowerCase()}</span>
+      </div>
+      <div className="sect-head">
+        <span className="eyebrow">Spells</span>
+        <h2>They turn into what they're doing.</h2>
+        <p>Give a goblin a job and it dissolves into its own colors, swirls over a rune circle, and reforms as the work: a quill writing a scroll, a cube solving itself, an ear catching sound. Made for agents and assistants that need to show their state.</p>
+        <div className="chips">
+          {MORPH_IDS.map((id) => (
+            <button key={id} id={`home-spell-${id}`} type="button" className="chip" aria-pressed={spell === id} onClick={() => { setSpell(id); setAuto(false); }}>
+              {MORPHS[id].label}
+            </button>
+          ))}
+        </div>
+        <div className="chips">
+          {[2, 1, 0, 6, 4].map((i) => (
+            <button key={i} id={`home-caster-${i}`} type="button" className="chip" aria-pressed={who === i} onClick={() => setWho(i)}>
+              {DEFAULT_CLAN[i].name}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function Home() {
   return (
@@ -46,6 +86,8 @@ function Home() {
         <World />
         <p className="world-note mono">Move your cursor. They're watching.</p>
       </section>
+
+      <Spells />
 
       <section className="sect">
         <div className="sect-head">

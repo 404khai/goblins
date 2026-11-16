@@ -2,6 +2,7 @@ import { StrictMode, useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { EXPRESSIONS, EXPRESSION_IDS } from "../../goblin/expressions";
 import { toJSON } from "../../goblin/export";
+import { MORPHS, MORPH_IDS } from "../../goblin/morph";
 import { GoblinAvatar } from "../../goblin/react";
 import { OPTIONS } from "../../goblin/types";
 import { Footer, Nav } from "../../site/Chrome";
@@ -14,6 +15,7 @@ const SECTIONS = [
   { id: "start", title: "Getting started" },
   { id: "goblin", title: "The goblin object" },
   { id: "expressions", title: "Expressions" },
+  { id: "spells", title: "Spells" },
   { id: "react", title: "React components" },
   { id: "export", title: "Exporting" },
   { id: "json", title: "JSON format" },
@@ -120,7 +122,33 @@ export function Profile() {
             </div>
           </Sect>
 
-          <Sect id="react" eyebrow="04 · React" title="React components">
+          <Sect id="spells" eyebrow="04 · Agents" title="Spells">
+            <p>A spell transforms the goblin into what it is doing, the way an agent shows its state. The body dissolves into particles in the goblin's own colors, they swirl over a rune circle, and reform as the shape. Clear the spell and they fly back into a goblin. Switching spells dissolves fully before reforming. Spells are 3D only; SVG exports show the expression.</p>
+            <Code>{`
+<Goblin3D goblin={bramble} morph="writing" />    // cast
+<Goblin3D goblin={bramble} morph={null} />       // back to a goblin
+
+// or save it on the goblin itself
+const busy = { ...bramble, morph: "uploading" };
+`}</Code>
+            <div className="table-wrap">
+              <table className="doc-table">
+                <thead><tr><th>Spell</th><th>What it becomes</th></tr></thead>
+                <tbody>
+                  {MORPH_IDS.map((id) => <tr key={id}><td><code>{id}</code></td><td>{MORPHS[id].blurb}</td></tr>)}
+                </tbody>
+              </table>
+            </div>
+            <p>With raw three.js, create a <code>Morpher</code> for a rig and call it after <code>animate</code>:</p>
+            <Code>{`
+const spell = new Morpher(rig, bramble);
+spell.set("solving");
+// every frame, after animate(...)
+spell.update(seconds);
+`}</Code>
+          </Sect>
+
+          <Sect id="react" eyebrow="05 · React" title="React components">
             <h3><code>&lt;GoblinAvatar /&gt;</code></h3>
             <p>Flat SVG. Cheap enough for long lists, comments and chat avatars, and it renders on the server.</p>
             <Code>{`<GoblinAvatar goblin={bramble} expression="thinking" size={48} hands={false} />`}</Code>
@@ -132,6 +160,7 @@ export function Profile() {
                 <thead><tr><th>Prop</th><th>Type</th><th>Default</th><th>Notes</th></tr></thead>
                 <tbody>
                   <tr><td><code>goblin</code></td><td>Goblin</td><td>required</td><td>The recipe.</td></tr>
+                  <tr><td><code>morph</code></td><td>MorphId | null</td><td><code>goblin.morph</code></td><td>3D only. Casts a spell.</td></tr>
                   <tr><td><code>expression</code></td><td>ExpressionId</td><td><code>goblin.expression</code></td><td>Overrides the goblin's saved mood.</td></tr>
                   <tr><td><code>size</code></td><td>number | string</td><td>96 / 240</td><td>Pixels or any CSS length.</td></tr>
                   <tr><td><code>hands</code></td><td>boolean</td><td>true</td><td>SVG only. Hide the floating mitts for tight crops.</td></tr>
@@ -142,7 +171,7 @@ export function Profile() {
             </div>
           </Sect>
 
-          <Sect id="export" eyebrow="05 · Export" title="Exporting">
+          <Sect id="export" eyebrow="06 · Export" title="Exporting">
             <p>The studio's export panel calls these functions. They are also importable from <code>src/goblin/export.ts</code>.</p>
             <div className="table-wrap">
               <table className="doc-table">
@@ -163,12 +192,12 @@ import { Bramble } from "./Bramble";
 `}</Code>
           </Sect>
 
-          <Sect id="json" eyebrow="06 · Files" title="JSON format">
+          <Sect id="json" eyebrow="07 · Files" title="JSON format">
             <p>Clan files hold one or more goblins. The studio imports any of: this wrapper, a bare goblin object, or an array of goblins.</p>
             <Code>{toJSON(BRAMBLE)}</Code>
           </Sect>
 
-          <Sect id="three" eyebrow="07 · Advanced" title="Raw three.js">
+          <Sect id="three" eyebrow="08 · Advanced" title="Raw three.js">
             <p>Skip React and drive a rig yourself. <code>buildGoblin</code> returns a <code>Rig</code> whose <code>root</code> you add to any scene; call <code>animate</code> every frame.</p>
             <Code>{`
 import { buildGoblin, animate } from "./goblin";
