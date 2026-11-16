@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { kit } from "./build";
-import type { MorphId } from "./morph";
+import type { MorphId } from "./spells";
+import { rubikApply, rubikFrame } from "./rubik";
 
 /**
  * Solid versions of each spell: toon-shaded, ink-outlined meshes in the goblins' own style.
@@ -118,20 +119,14 @@ export const SOLIDS: Record<MorphId, (g: Palette) => Solid> = {
     return {
       group,
       update: (t) => {
-        const step = floor(t / 1.8), q = frac(t / 1.8);
-        const ang = (smooth(q / 0.35) - smooth((q - 0.5) / 0.35)) * (PI / 2) * (step % 2 ? 1 : -1);
-        const axis = (["y", "x", "y", "z"] as const)[step % 4];
-        const layer = [1, -1, 0, 1, -1][step % 5];
-        const ax = axis === "x" ? X : axis === "y" ? Y : Z;
+        const f = rubikFrame(t);
         for (const c of cubies) {
           c.obj.position.copy(c.home);
           c.obj.quaternion.identity();
-          if (Math.round(c.home[axis] / D) === layer) {
-            c.obj.position.applyAxisAngle(ax, ang);
-            c.obj.quaternion.setFromAxisAngle(ax, ang);
-          }
+          rubikApply(f, c.obj.position, c.home.clone(), D, c.obj.quaternion);
         }
-        cube.rotation.set(0.55, 0.75 + sin(t * 0.4) * 0.25, 0);
+        cube.position.y = 0.15 + f.toss;
+        cube.rotation.set(0.55, 0.75 + sin(t * 0.4) * 0.25 + f.spin, 0);
       },
     };
   },
@@ -284,7 +279,7 @@ export const SOLIDS: Record<MorphId, (g: Palette) => Solid> = {
     const mb = g0(group, [0.55, -0.05, 0], [0, -0.75, 0]);
     const blue = toon("#2F5FC4");
     mesh(box(W * 2, Y1 - Y0, L * 2), blue, mb, [0, (Y0 + Y1) / 2, 0]);
-    mesh(new THREE.CylinderGeometry(W, W, L * 2, 32, 1, false, -PI / 2, PI), blue, mb, [0, Y1, 0], null, [PI / 2, 0, 0]);
+    mesh(new THREE.CylinderGeometry(W, W, L * 2, 32, 1, false, -PI / 2, PI), blue, mb, [0, Y1, 0], null, [-PI / 2, 0, 0]); // rounded roof, facing up
     const dShape = (s: number) => {
       const sh = new THREE.Shape();
       sh.moveTo(-W * s, Y0 + (1 - s) * 0.1);

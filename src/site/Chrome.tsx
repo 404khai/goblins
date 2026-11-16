@@ -43,7 +43,7 @@ export function Footer() {
       <div className="footer-row">
         <span className="footer-brand"><LogoFlat size={28} expression="wink" /> Goblins</span>
         <span>Flat-shaded 3D avatars with gnome hats and beards. Built with three.js and React.</span>
-        <span className="mono">v0.3 · Nov 2026</span>
+        <span className="mono">v{__GOBLINS_VERSION__} · Nov 2026</span>
       </div>
     </footer>
   );

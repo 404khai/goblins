@@ -1,0 +1,14 @@
+:root { --bg: #efebdd; --panel: #e3dcc6; --ink: #1d2318; --muted: #5e6552; --line: #cfc6aa; --accent: #d8402f; }
+@media (prefers-color-scheme: dark) { :root { --bg: #171b14; --panel: #20261c; --ink: #ece8d8; --muted: #9da48e; --line: #343c2c; --accent: #ee5a44; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: end; gap: 16px 32px; padding: 20px 16px; border-bottom: 1px solid var(--line); }
+h1 { margin: 0; font-size: 28px; }
+header p { margin: 4px 0 0; color: var(--muted); }
+dl { display: flex; gap: 24px; margin: 0; }
+dt { font: 500 11px ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+dd { margin: 2px 0 0; font: 600 20px ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.tools { display: flex; gap: 8px; margin-left: auto; }
+button { font: 600 13px system-ui, sans-serif; padding: 8px 12px; border-radius: 10px; border: 2px solid var(--ink); background: var(--panel); color: var(--ink); cursor: pointer; }
+#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0; }
+figure { margin: 0; padding: 8px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; justify-items: center; gap: 4px; cursor: pointer; }
+figcaption { font: 12px ui-monospace, Menlo, monospace; color: var(--muted); text-align: center; }

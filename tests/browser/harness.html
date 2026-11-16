@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="data:," />
+    <title>Goblins browser checks</title>
+    <!-- strict CSP, as a WKWebView host would set: no eval, no inline workers, no network -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self'; connect-src 'none'" />
+    <script type="module" src="./harness.js"></script>
+  </head>
+  <body>
+    <p>Serve the repo root, build with <code>bun run build:lib</code>, then open /tests/browser/harness.html. Results appear below.</p>
+    <iframe id="embed" src="../../dist/embed.html" width="480" height="160" title="embed"></iframe>
+    <div id="elements"></div>
+    <pre id="result">running…</pre>
+  </body>
+</html>

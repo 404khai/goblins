@@ -17,7 +17,7 @@ const looks = LOOKS >= 1e9 ? `${(LOOKS / 1e9).toFixed(1)} billion` : `${Math.rou
 
 const EXPORTS = [
   { title: "SVG", body: "A flat sticker of any goblin in any expression. Crisp at every size, editable in Figma.", code: `goblinSvg(bramble, { expression: "wink" })` },
-  { title: "React", body: "One .tsx file per goblin with all 15 expressions baked in. No dependencies.", code: `<Bramble expression="thinking" size={64} />` },
+  { title: "React", body: "One .tsx file per goblin with every expression baked in. No dependencies.", code: `<Bramble expression="thinking" size={64} />` },
   { title: "JSON", body: "The goblin's recipe. Import it back into the studio or keep a clan in your repo.", code: `{ "hat": "gnome", "eyes": "visor", … }` },
   { title: "PNG", body: "A 1024px transparent image for chat apps, slides and profile pictures.", code: `await toPNG(bramble, 1024)` },
 ];
@@ -78,8 +78,8 @@ function Home() {
           <span className="eyebrow">Avatar bundle · 3D · SVG · React</span>
           <h1>A clan of goblins, ready to move in.</h1>
           <p>
-            Gnome hats, braided beards and big googly eyes. Each goblin has fifteen animated moods, from
-            thinking to snoring, and exports to SVG, PNG, JSON or a React component.
+            Gnome hats, braided beards and big googly eyes. Each goblin has thirty animated moods, from
+            thinking to snoring to juggling, and exports to SVG, PNG, JSON or a React component.
           </p>
           <div className="hero-cta">
             <a className="btn" href="./studio.html">Open the studio</a>
@@ -100,7 +100,7 @@ function Home() {
       <section className="sect">
         <div className="sect-head">
           <span className="eyebrow">Expressions</span>
-          <h2>Fifteen moods, each with its own moves.</h2>
+          <h2>Thirty moods, each with its own moves.</h2>
           <p>Every expression drives the eyes, lids, brows, mouth, hands and props together, so a goblin reads at 32px.</p>
         </div>
         <div className="moods">

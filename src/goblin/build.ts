@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import type { Goblin } from "./types";
 
-export type MouthKind = "smile" | "grin" | "o" | "flat" | "frown" | "smirk";
-export type PropKind = "magnifier" | "dots" | "question" | "zzz" | "hearts" | "sparkles" | "exclaim" | "sweat" | "tear";
+import { buildActs } from "./acts";
+import { buildWardrobe } from "./wardrobe";
+import type { MouthKind, PropKind } from "./poses";
+export type { MouthKind, PropKind };
 
 export interface EyeRig {
   side: number;
@@ -26,9 +28,13 @@ export interface Rig {
   hands: THREE.Object3D[];
   handHome: THREE.Vector3[];
   props: Record<PropKind, THREE.Group>;
+  /** What it carries while its hands are free (wardrobe tool), and where the mitts go then. */
+  tool: THREE.Group | null;
+  toolHands: THREE.Vector3[] | null;
+  hook: boolean;
   ring: THREE.Mesh;
   top: number;
-  state: { expr: string; lid: number; tilt: number; pupil: number; brow: number[]; nextBlink: number; blinkUntil: number };
+  state: { expr: string; lid: number; tilt: number; pupil: number; brow: number[]; nextBlink: number; blinkUntil: number; squint?: number[] };
 }
 
 // ---------- materials ----------
@@ -80,7 +86,7 @@ function bentCone(r: number, h: number, bx: number, bz: number) {
   return g;
 }
 
-export const LOW_HATS = ["gnome", "wizard", "beanie"];
+export const LOW_HATS = ["gnome", "wizard", "beanie", "tophat", "pirate", "hardhat", "chef"];
 const HEADS: Record<Goblin["head"], V3> = { round: [1.04, 0.96, 0.96], egg: [0.9, 1.1, 0.9], wide: [1.2, 0.86, 0.95], bean: [0.98, 1.0, 0.86] };
 
 function heart(parent: THREE.Object3D, mat: THREE.Material, s: number) {
@@ -340,6 +346,10 @@ export function buildGoblin(d: Goblin): Rig {
   const handHome = [-1, 1].map((s) => new THREE.Vector3(s * (hx + 0.2), -1.2, 0.35));
   const hands = handHome.map((p) => mesh(S(0.21), skin, root, [p.x, p.y, p.z], [1, 0.95, 0.85]));
 
+  // ---------- wardrobe: hair, top hat, goggles, lashes, blush, bow, carried tool ----------
+  const wardrobe = buildWardrobe({ d, mesh, toon: M, flat: F, sphere: S, shade, head, root, hands, eyes, hx, hy, hz, surf, capY, EX, EY });
+  if (wardrobe.top !== undefined) top = wardrobe.top;
+
   // ---------- props ----------
   const yellow = M("#F2B630"), red = M("#E2443A"), blue = M("#7EC8F0"), paper = M("#F7F4EC");
   const props = {} as Record<PropKind, THREE.Group>;
@@ -365,6 +375,14 @@ export function buildGoblin(d: Goblin): Rig {
   [0.7, 0.9, 1.1].forEach((s) => zee(zz, F(INK), s));
   const hearts = P("hearts", root, [0, hy, 0.4]);
   [1, 0.8, 0.65].forEach((s) => heart(hearts, red, s));
+  const confetti = P("confetti", root);
+  const confettiColors = ["#D8402F", "#F2B630", "#2F6FD6", "#3E9B4F", "#E35D9C", "#7CF2C8"];
+  const bit = new THREE.PlaneGeometry(0.13, 0.07);
+  for (let i = 0; i < 44; i++) {
+    const m = new THREE.Mesh(bit, F(confettiColors[i % confettiColors.length]));
+    m.userData.seed = [((i * 37) % 44) / 44, ((i * 13) % 11) / 11, (i * 0.618) % 1];
+    confetti.add(m);
+  }
   const sp = P("sparkles", root, [0, 0.2, 0]);
   for (let i = 0; i < 5; i++) sparkle(sp, yellow, 0.8 + (i % 2) * 0.4);
   const ex = P("exclaim", root, [-hx - 0.35, hy + 0.3, 0.2]);
@@ -374,6 +392,9 @@ export function buildGoblin(d: Goblin): Rig {
   drop(sweat, blue, [0, 0, 0], 1.3);
   const tear = P("tear", head, [-EX - 0.05, EY - 0.22, EZ + 0.12]);
   drop(tear, blue, [0, 0, 0]);
+
+  // activity props (the spells acted out): quill and notepad, equations, hand bell…
+  buildActs({ mesh, toon: M, flat: F, sphere: S, prop: (k, parent, pos) => P(k, parent, pos), root, head, hands, hat: d.hat === "none" ? d.skin : d.hatColor, skin: d.skin, hx, hy, top });
 
   // ---------- ground ----------
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.1, 40), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12 }));
@@ -386,7 +407,7 @@ export function buildGoblin(d: Goblin): Rig {
   root.add(ring);
 
   return {
-    root, head, eyes, brows, mouth, mouths, hands, handHome, props, ring, top,
+    root, head, eyes, brows, mouth, mouths, hands, handHome, props, ring, top, tool: wardrobe.tool, toolHands: wardrobe.toolHands, hook: wardrobe.hook,
     state: { expr: "", lid: 0, tilt: 0, pupil: 1, brow: [0, 0, 0, 0], nextBlink: 1 + Math.random() * 3, blinkUntil: 0 },
   };
 }

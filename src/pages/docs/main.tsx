@@ -57,7 +57,7 @@ function Docs() {
         <div className="doc-banner-copy">
           <span className="eyebrow">Goblins / Docs</span>
           <h1>Goblins documentation</h1>
-          <p>Everything you need to put a goblin in your app: the trait set, the fifteen expressions, the React components and the export formats.</p>
+          <p>Everything you need to put a goblin in your app: the trait set, the thirty expressions, the React components and the export formats.</p>
         </div>
         <Scenery kind="lamp" className="doc-lamp" style={{ "--d": "-2s" }} />
       </header>

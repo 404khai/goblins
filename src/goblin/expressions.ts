@@ -1,18 +1,8 @@
 import * as THREE from "three";
-import type { MouthKind, PropKind, Rig } from "./build";
+import type { Rig } from "./build";
+import { ACT_MOTION } from "./acts";
+import { ACT_KINDS, EXPRESSION_IDS, EXPRESSION_META, STILLS, type ActKind, type EyeMode, type ExpressionMeta, type MouthKind, type Pose, type PropKind, type Still } from "./poses";
 import type { ExpressionId } from "./types";
-
-type EyeMode = "open" | "happy" | "closed";
-
-interface Pose {
-  eyes: [EyeMode, EyeMode]; // [left, right]
-  lid: number; // 0 wide open … 1 half shut
-  tilt: number; // lid slant, + angry / - sad
-  pupil: number;
-  brow: [number, number]; // [lift, slant] applied to both
-  browL?: [number, number]; // optional asymmetric left brow
-  mouth: MouthKind;
-}
 
 interface Out {
   pos: THREE.Vector3;
@@ -21,37 +11,23 @@ interface Out {
   hands: THREE.Vector3[];
   mouth: number;
   squash: number;
+  /** Extra lid per eye [left, right] on top of the pose, for winks and squints. */
+  squint: [number, number];
 }
 
-/** A single still frame of the expression, used by the SVG renderer. */
-export interface Still {
-  look?: [number, number];
-  tilt?: number;
-  hands?: [[number, number] | null, [number, number] | null];
-  mouth?: number;
-}
-
-export interface Expression {
-  label: string;
-  blurb: string;
-  pose: Pose;
-  props?: PropKind[];
-  /** Show the floating mitts. Off unless the pose needs them (holding, rubbing, scratching). */
-  hands?: boolean;
-  still?: Still;
+export interface Expression extends ExpressionMeta {
   motion: (t: number, o: Out, r: Rig) => void;
 }
 
-export type { Pose, EyeMode };
+export type { Pose, EyeMode, Still };
+export { EXPRESSION_IDS, STILLS };
 
 const sin = Math.sin, abs = Math.abs, cos = Math.cos;
 const pulse = (t: number, period: number, len: number) => (t % period) < len;
-const P = (p: Partial<Pose>): Pose => ({ eyes: ["open", "open"], lid: 0, tilt: 0, pupil: 1, brow: [0, 0], mouth: "smile", ...p });
 
 export const EXPRESSIONS: Record<ExpressionId, Expression> = {
   idle: {
-    label: "Idle", blurb: "Breathes, follows your cursor, blinks.",
-    pose: P({}),
+    ...EXPRESSION_META.idle,
     motion: (t, o) => {
       o.pos.y = sin(t * 1.6) * 0.06;
       o.squash = 1 + sin(t * 1.6) * 0.015;
@@ -59,9 +35,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   happy: {
-    label: "Happy", blurb: "Bouncy hop with sparkles.",
-    pose: P({ eyes: ["happy", "happy"], brow: [0.06, -0.05], mouth: "grin" }),
-    props: ["sparkles"],
+    ...EXPRESSION_META.happy,
     motion: (t, o, r) => {
       const b = abs(sin(t * 4));
       o.pos.y = b * 0.18;
@@ -72,8 +46,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   laughing: {
-    label: "Laughing", blurb: "Head thrown back, shaking with it.",
-    pose: P({ eyes: ["happy", "happy"], brow: [0.1, -0.15], mouth: "grin" }),
+    ...EXPRESSION_META.laughing,
     motion: (t, o) => {
       o.pos.y = abs(sin(t * 14)) * 0.07 + 0.05;
       o.rot.x = -0.22 + sin(t * 14) * 0.03;
@@ -83,9 +56,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   love: {
-    label: "In love", blurb: "Swoons side to side, hearts drift up.",
-    pose: P({ lid: 0.35, pupil: 1.2, brow: [0.08, -0.2], mouth: "smile" }),
-    props: ["hearts"],
+    ...EXPRESSION_META.love,
     motion: (t, o, r) => {
       o.rot.z = sin(t * 1.8) * 0.14;
       o.pos.x = sin(t * 1.8) * 0.08;
@@ -99,8 +70,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   wink: {
-    label: "Wink", blurb: "Cheeky wink and a nod.",
-    pose: P({ eyes: ["open", "happy"], brow: [0.04, 0], browL: [0.12, -0.15], mouth: "smirk" }),
+    ...EXPRESSION_META.wink,
     motion: (t, o) => {
       const k = (t % 2.4) / 2.4;
       o.rot.z = -0.12;
@@ -109,9 +79,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   surprised: {
-    label: "Surprised", blurb: "Jolts upright, hands fly up.",
-    pose: P({ lid: -0.15, pupil: 0.55, brow: [0.17, -0.1], mouth: "o" }),
-    props: ["exclaim"],
+    ...EXPRESSION_META.surprised,
     motion: (t, o, r) => {
       const k = (t % 3) / 3;
       const jolt = k < 0.1 ? sin((k / 0.1) * Math.PI) : 0;
@@ -125,14 +93,14 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   thinking: {
-    hands: true,
-    label: "Thinking", blurb: "Chin rub, eyes up, thought bubbles.",
-    pose: P({ lid: 0.3, brow: [0.02, 0.05], browL: [0.14, -0.2], mouth: "smirk" }),
-    props: ["dots"],
+    ...EXPRESSION_META.thinking,
     motion: (t, o, r) => {
-      o.look = new THREE.Vector2(0.7, 0.85);
-      o.rot.z = 0.12;
-      o.rot.y = 0.18 + sin(t * 0.8) * 0.05;
+      // eyes up and roaming, one squinted; the head drifts around as the idea forms
+      o.look = new THREE.Vector2(0.55 + sin(t * 0.9) * 0.35, 0.7 + sin(t * 1.3) * 0.15);
+      o.rot.z = 0.1 + sin(t * 0.6) * 0.06;
+      o.rot.y = 0.15 + sin(t * 0.7) * 0.3;
+      o.rot.x = -0.1 + sin(t * 1.1) * 0.08;
+      o.squint = frac(t / 7) < 0.8 ? [0, 0.7] : [0.7, 0];
       o.hands[1].set(0.35, -1.0 + abs(sin(t * 5)) * 0.06, 1.05);
       r.props.dots.children.forEach((d, i) => {
         const k = ((t * 0.9) % 3) - i * 0.5;
@@ -141,10 +109,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   searching: {
-    hands: true,
-    label: "Searching", blurb: "Scans the room with a magnifying glass.",
-    pose: P({ lid: 0.15, brow: [0.06, 0.05], browL: [-0.02, 0.2], mouth: "flat" }),
-    props: ["magnifier"],
+    ...EXPRESSION_META.searching,
     motion: (t, o, r) => {
       const s = sin(t * 1.3);
       const step = Math.round(s * 2) / 2; // pupils snap between spots
@@ -158,22 +123,29 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   confused: {
-    hands: true,
-    label: "Confused", blurb: "Head tilt, scratching under the hat.",
-    pose: P({ pupil: 0.85, brow: [0.02, 0.15], browL: [0.18, -0.25], mouth: "smirk" }),
-    props: ["question"],
+    ...EXPRESSION_META.confused,
     motion: (t, o, r) => {
-      o.rot.z = 0.2 + sin(t * 1.2) * 0.05;
-      o.look = new THREE.Vector2(sin(t * 0.7) * 0.4, 0.3);
-      o.hands[1].set(1.1, 0.55 + abs(sin(t * 12)) * 0.08, 0.3);
+      // scratch the head, then give up and look around for someone who knows
+      const q = frac(t / 6);
+      if (q < 0.4) {
+        o.rot.z = 0.2 + sin(t * 1.2) * 0.05;
+        o.look = new THREE.Vector2(sin(t * 0.7) * 0.4, 0.3);
+        o.hands[1].set(1.1, 0.55 + abs(sin(t * 12)) * 0.08, 0.3);
+      } else {
+        const k = (q - 0.4) / 0.6, sweep = sin(k * Math.PI * 2.5);
+        o.rot.y = sweep * 0.55;
+        o.rot.z = 0.06;
+        o.look = new THREE.Vector2(sweep, 0.05);
+        o.pos.y = abs(sin(t * 3)) * 0.03;
+        o.hands[0].set(-1.0, -0.9, 0.6);
+        o.hands[1].set(1.0, -0.9, 0.6);
+      }
       r.props.question.rotation.z = sin(t * 2) * 0.2;
       r.props.question.position.y = r.top + 0.15 + sin(t * 2.4) * 0.08;
     },
   },
   nervous: {
-    label: "Nervous", blurb: "Trembles, darting eyes, sweat drop.",
-    pose: P({ lid: 0.05, pupil: 0.65, brow: [0.08, -0.3], mouth: "flat" }),
-    props: ["sweat"],
+    ...EXPRESSION_META.nervous,
     motion: (t, o, r) => {
       o.pos.x = sin(t * 38) * 0.015;
       o.look = new THREE.Vector2(pulse(t, 1.4, 0.7) ? -0.8 : 0.8, -0.1);
@@ -186,9 +158,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   sad: {
-    label: "Sad", blurb: "Droops, looks down, a tear rolls.",
-    pose: P({ lid: 0.45, tilt: -0.35, pupil: 1.15, brow: [0.02, -0.35], mouth: "frown" }),
-    props: ["tear"],
+    ...EXPRESSION_META.sad,
     motion: (t, o, r) => {
       o.look = new THREE.Vector2(0, -0.8);
       o.rot.x = 0.2;
@@ -201,8 +171,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   angry: {
-    label: "Angry", blurb: "Glares, fists shaking, steaming.",
-    pose: P({ lid: 0.45, tilt: 0.5, pupil: 0.8, brow: [-0.08, 0.5], mouth: "frown" }),
+    ...EXPRESSION_META.angry,
     motion: (t, o) => {
       const fit = pulse(t, 2, 0.6);
       o.pos.x = fit ? sin(t * 45) * 0.04 : 0;
@@ -213,8 +182,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   talking: {
-    label: "Talking", blurb: "Chatters away with hand gestures.",
-    pose: P({ lid: 0.1, brow: [0.04, 0], mouth: "o" }),
+    ...EXPRESSION_META.talking,
     motion: (t, o) => {
       o.mouth = 0.25 + abs(sin(t * 9) * sin(t * 3.1)) * 1.1;
       o.rot.z = sin(t * 1.7) * 0.06;
@@ -225,9 +193,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   sleeping: {
-    label: "Sleeping", blurb: "Nods off, snores, Z's float away.",
-    pose: P({ eyes: ["closed", "closed"], brow: [-0.04, 0], mouth: "o" }),
-    props: ["zzz"],
+    ...EXPRESSION_META.sleeping,
     motion: (t, o, r) => {
       const breath = sin(t * 1.2);
       o.rot.x = 0.25;
@@ -244,9 +210,7 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
     },
   },
   celebrate: {
-    label: "Celebrate", blurb: "Big jumps, arms up, confetti stars.",
-    pose: P({ eyes: ["happy", "happy"], brow: [0.12, -0.1], mouth: "grin" }),
-    props: ["sparkles"],
+    ...EXPRESSION_META.celebrate,
     motion: (t, o, r) => {
       const k = abs(sin(t * 4.5));
       o.pos.y = k * 0.55;
@@ -254,10 +218,27 @@ export const EXPRESSIONS: Record<ExpressionId, Expression> = {
       o.rot.y = sin(t * 2.25) * 0.3;
       o.hands[0].set(-1.15, 0.9 + k * 0.6, 0.3);
       o.hands[1].set(1.15, 0.9 + k * 0.6, 0.3);
-      orbit(r.props.sparkles, t * 1.6, 1.9, 0.6 + k * 0.5);
+      // confetti flutters down around the jumping goblin
+      r.props.confetti.children.forEach((c) => {
+        const [sx, sz, ph] = c.userData.seed as number[];
+        const fall = frac(t * 0.32 + ph);
+        c.position.set((sx - 0.5) * 4.4 + sin(t * 2 + ph * 9) * 0.25, 3.4 - fall * 5.6, (sz - 0.5) * 1.6 + 0.6);
+        c.rotation.set(t * 3 + ph * 7, t * 2 + sx * 5, t * 4 + sz * 3);
+      });
     },
   },
+  serious: {
+    ...EXPRESSION_META.serious,
+    motion: (t, o) => {
+      // almost still: a slow breath and the occasional slight nod
+      o.pos.y = sin(t * 1.0) * 0.015;
+      o.rot.x = 0.06 + (frac(t / 6) < 0.08 ? sin((frac(t / 6) / 0.08) * Math.PI) * 0.08 : 0);
+    },
+  },
+  ...(Object.fromEntries(ACT_KINDS.map((k) => [k, { ...EXPRESSION_META[k], motion: ACT_MOTION[k] as unknown as Expression["motion"] }])) as Record<ActKind, Expression>),
 };
+
+const frac = (x: number) => x - Math.floor(x);
 
 function orbit(g: THREE.Group, t: number, radius: number, y: number) {
   g.children.forEach((c, i) => {
@@ -268,7 +249,7 @@ function orbit(g: THREE.Group, t: number, radius: number, y: number) {
   });
 }
 
-const out: Out = { pos: new THREE.Vector3(), rot: new THREE.Vector3(), look: null, hands: [new THREE.Vector3(), new THREE.Vector3()], mouth: 1, squash: 1 };
+const out: Out = { pos: new THREE.Vector3(), rot: new THREE.Vector3(), look: null, hands: [new THREE.Vector3(), new THREE.Vector3()], mouth: 1, squash: 1, squint: [0, 0] };
 const L = THREE.MathUtils.lerp;
 
 /** Drive one goblin for a frame. `pointer` is the cursor direction relative to this goblin, roughly -1…1. */
@@ -281,22 +262,29 @@ export function animate(r: Rig, id: ExpressionId, t: number, pointer: THREE.Vect
     st.expr = id;
     r.eyes.forEach((e, i) => {
       const m = ex.pose.eyes[i];
-      e.open.visible = m === "open";
-      e.happy.visible = m === "happy";
-      e.closed.visible = m === "closed";
+      const patched = !!e.open.userData.patched; // an eyepatch covers this eye whatever the mood
+      e.open.visible = m === "open" && !patched;
+      e.happy.visible = m === "happy" && !patched;
+      e.closed.visible = m === "closed" && !patched;
     });
     (Object.keys(r.mouths) as MouthKind[]).forEach((k) => (r.mouths[k].visible = k === ex.pose.mouth));
     (Object.keys(r.props) as PropKind[]).forEach((k) => (r.props[k].visible = !!ex.props?.includes(k)));
-    r.hands.forEach((h) => (h.visible = !!ex.hands));
+    // groups that live outside their prop (floating digits, sound rings) follow their owner's visibility
+    r.root.children.forEach((o) => { if (o.userData.owner) o.visible = (o.userData.owner as THREE.Object3D).visible; });
+    // a carried tool keeps the mitts out; an expression that needs the hands puts it away
+    r.hands.forEach((h, i) => (h.visible = !!ex.hands || !!r.tool || (i === 1 && r.hook)));
+    if (r.tool) r.tool.visible = !ex.hands;
   }
 
   out.pos.set(0, 0, 0);
   out.rot.set(0, 0, 0);
   out.look = null;
-  out.hands[0].copy(r.handHome[0]);
-  out.hands[1].copy(r.handHome[1]);
+  const rest = !ex.hands && r.toolHands ? r.toolHands : r.handHome;
+  out.hands[0].copy(rest[0]);
+  out.hands[1].copy(rest[1]);
   out.mouth = 1;
   out.squash = 1;
+  out.squint = [0, 0];
   ex.motion(reduce ? 0 : t, out, r);
 
   // body
@@ -317,6 +305,7 @@ export function animate(r: Rig, id: ExpressionId, t: number, pointer: THREE.Vect
   st.lid = L(st.lid, ex.pose.lid, 0.2);
   st.tilt = L(st.tilt, ex.pose.tilt, 0.2);
   st.pupil = L(st.pupil, ex.pose.pupil, 0.2);
+  st.squint = [L(st.squint?.[0] ?? 0, out.squint[0], 0.15), L(st.squint?.[1] ?? 0, out.squint[1], 0.15)];
   const bl = ex.pose.browL ?? ex.pose.brow;
   const target = [bl[0], bl[1], ex.pose.brow[0], ex.pose.brow[1]];
   st.brow = st.brow.map((v, i) => L(v, target[i], 0.2));
@@ -325,12 +314,12 @@ export function animate(r: Rig, id: ExpressionId, t: number, pointer: THREE.Vect
   if (!reduce && t > st.nextBlink) { st.blinkUntil = t + 0.13; st.nextBlink = t + 2.5 + Math.random() * 3.5; }
   const blinking = t < st.blinkUntil;
 
-  r.eyes.forEach((e) => {
+  r.eyes.forEach((e, i) => {
     e.g.scale.y = L(e.g.scale.y, blinking && e.open.visible ? 0.1 : 1, 0.5);
     e.look.obj.position.set(e.look.base.x + look.x * e.look.range, e.look.base.y + look.y * e.look.range, e.look.base.z);
     if (e.pupil) e.pupil.scale.set(st.pupil, st.pupil, 0.5);
     if (e.lid) {
-      const lid = Math.max(0, st.lid);
+      const lid = Math.min(1, Math.max(0, st.lid + (st.squint?.[i] ?? 0)));
       e.lid.rotation.x = -1.45 * (1 - lid);
       e.lid.rotation.z = e.side * st.tilt;
       e.lid.visible = lid > 0.02;
@@ -351,23 +340,3 @@ export function animate(r: Rig, id: ExpressionId, t: number, pointer: THREE.Vect
   });
   r.mouth.scale.set(1 + (out.mouth - 1) * 0.3, L(r.mouth.scale.y, out.mouth, 0.35), 1);
 }
-
-export const EXPRESSION_IDS = Object.keys(EXPRESSIONS) as ExpressionId[];
-
-/** Key frames for the SVG renderer: where the eyes look, head tilt, and hand placement. */
-export const STILLS: Partial<Record<ExpressionId, Still>> = {
-  happy: { hands: [[-1.3, -0.85], [1.3, -0.85]] },
-  laughing: { tilt: 0.05, hands: [[-0.55, -1.15], [0.55, -1.15]], mouth: 1.3 },
-  love: { tilt: 0.1, hands: [[-0.75, -0.55], [0.75, -0.55]] },
-  wink: { tilt: -0.12, hands: [null, [1.05, -0.4]] },
-  surprised: { hands: [[-1.3, -0.05], [1.3, -0.05]], mouth: 1.2 },
-  thinking: { look: [0.7, 0.85], tilt: 0.12, hands: [null, [0.35, -1.0]] },
-  searching: { look: [0.5, -0.15], hands: [null, [0.75, -0.6]] },
-  confused: { look: [0, 0.3], tilt: 0.2, hands: [null, [1.1, 0.55]] },
-  nervous: { look: [-0.8, -0.1], hands: [[-0.3, -1.15], [0.3, -1.15]] },
-  sad: { look: [0, -0.8], hands: [[-0.95, -1.45], [0.95, -1.45]] },
-  angry: { hands: [[-1.25, -0.6], [1.25, -0.6]] },
-  talking: { tilt: 0.05, hands: [[-1.15, -0.75], [1.15, -1.05]], mouth: 1.1 },
-  sleeping: { tilt: 0.14, hands: [[-1.1, -1.5], [1.1, -1.5]], mouth: 1.1 },
-  celebrate: { hands: [[-1.15, 1.1], [1.15, 1.1]] },
-};

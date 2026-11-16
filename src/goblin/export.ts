@@ -1,6 +1,6 @@
-import { EXPRESSION_IDS } from "./expressions";
+import { EXPRESSION_IDS } from "./poses";
 import { goblinSvg } from "./svg";
-import { MORPH_IDS } from "./morph";
+import { MORPH_IDS } from "./spells";
 import { DEFAULT_CLAN, OPTIONS, type Goblin } from "./types";
 
 export const SCHEMA_VERSION = 1;
@@ -24,14 +24,17 @@ export function fromJSON(text: string): Goblin[] {
     const g = { ...base, extras: [] as string[], ...raw } as Goblin & Record<string, unknown>;
     for (const [k, o] of Object.entries(OPTIONS)) {
       const val = g[k];
+      // optional traits come only from the recipe itself, never from the template goblin
+      if (o.optional && raw[k] === undefined) { g[k] = o.values[0]; continue; }
       if (o.multi) g[k] = Array.isArray(val) ? val.filter((x) => o.values.includes(String(x))) : [];
-      else if (o.color) g[k] = typeof val === "string" && hex.test(val) ? val : (base as never)[k];
-      else if (!o.values.includes(String(val))) g[k] = (base as never)[k];
+      else if (o.color) g[k] = typeof val === "string" && hex.test(val) ? val : o.optional ? o.values[0] : (base as never)[k];
+      else if (!o.values.includes(String(val))) g[k] = o.optional ? o.values[0] : (base as never)[k];
     }
     if (!(EXPRESSION_IDS as string[]).includes(String(g.expression))) g.expression = "idle";
     if (g.morph != null && !(MORPH_IDS as string[]).includes(String(g.morph))) g.morph = null;
     g.name = typeof g.name === "string" && g.name.trim() ? g.name.slice(0, 16) : `Goblin ${i + 1}`;
-    g.id = `g${Date.now()}${i}`;
+    // keep a host-chosen id so apps can address this goblin; otherwise mint one
+    g.id = typeof raw.id === "string" && raw.id.trim() ? raw.id.slice(0, 64) : `g${Date.now()}${i}`;
     return g as Goblin;
   });
 }

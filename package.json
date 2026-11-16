@@ -1,23 +1,94 @@
 {
-  "name": "goblins",
-  "private": true,
-  "version": "0.1.0",
+  "name": "@404khai/goblins",
+  "version": "0.7.0",
+  "description": "Toon-shaded 3D goblin avatars with gnome hats and beards: expressions, spells, SVG and glyph renderers, a custom element and an embed protocol.",
+  "license": "MIT",
+  "author": "Khai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/404khai/goblins.git"
+  },
+  "homepage": "https://github.com/404khai/goblins#readme",
+  "keywords": [
+    "avatar",
+    "three",
+    "webgl",
+    "svg",
+    "agent",
+    "custom-element"
+  ],
   "type": "module",
+  "main": "./dist/lib/index.js",
+  "module": "./dist/lib/index.js",
+  "types": "./dist/types/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/lib/index.d.ts",
+      "import": "./dist/lib/index.js"
+    },
+    "./flat": {
+      "types": "./dist/types/lib/flat.d.ts",
+      "import": "./dist/lib/flat.js"
+    },
+    "./react": {
+      "types": "./dist/types/lib/react.d.ts",
+      "import": "./dist/lib/react.js"
+    },
+    "./element": {
+      "types": "./dist/types/lib/element.d.ts",
+      "import": "./dist/lib/element.js"
+    },
+    "./bundle": "./dist/goblins.js",
+    "./goblins.js": "./dist/goblins.js",
+    "./embed.html": "./dist/embed.html",
+    "./embed.js": "./dist/embed.js",
+    "./embed.css": "./dist/embed.css",
+    "./schema.json": "./dist/goblins.schema.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": [
+    "./dist/lib/element.js",
+    "./dist/goblins.js",
+    "./dist/embed.js",
+    "*.css"
+  ],
   "scripts": {
     "dev": "bun --bun x vite",
-    "build": "bun --bun x tsc && bun --bun x vite build",
-    "preview": "vite preview"
+    "build": "bun run build:lib && bun run build:site",
+    "build:lib": "bun --bun scripts/build-lib.ts",
+    "build:site": "bun --bun x tsc && bun --bun x vite build",
+    "test": "bun test",
+    "prepare": "bun run build:lib",
+    "prepublishOnly": "bun test && bun run build:lib",
+    "test:browser": "bun tests/browser/run.ts"
   },
-  "dependencies": {
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "three": "^0.187.0"
+  "peerDependencies": {
+    "three": ">=0.160.0",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "three": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "playwright-core": "^1.65.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.187.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"
   }

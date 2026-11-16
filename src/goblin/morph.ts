@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { kit, type Rig } from "./build";
+import { rubikApply, rubikFrame } from "./rubik";
+import { MORPH_IDS, SPELL_META, type MorphId, type SpellMeta } from "./spells";
 import { SOLIDS, type Solid } from "./solids";
 import type { Goblin } from "./types";
 
@@ -9,9 +11,7 @@ import type { Goblin } from "./types";
  * Dots are depth-shaded so each object reads as solid. An optional rune circle glows underneath.
  */
 
-export type MorphId =
-  | "writing" | "sketching" | "solving" | "listening" | "thinking" | "orbit" | "radar" | "progress" | "dictating"
-  | "sending" | "receiving" | "uploading" | "bouncing" | "alerting" | "powering-down";
+export type { MorphId };
 
 interface Particle {
   k: number; // 0..1, this dot's slot in the target object
@@ -21,7 +21,7 @@ interface Particle {
   c: string | null; // target color, null keeps the goblin's own
 }
 interface Palette { skin: string; hat: string; beard: string; scarf: string }
-interface MorphDef { label: string; blurb: string; accent: string; shape: (p: Particle, t: number, g: Palette) => void }
+interface MorphDef extends SpellMeta { shape: (p: Particle, t: number, g: Palette) => void }
 
 const INK = "#1D2318", PAPER = "#F4EEDC", GOLD = "#F2B630", TEAL = "#7CF2C8", RED = "#E2443A";
 const TAU = Math.PI * 2, PI = Math.PI;
@@ -42,7 +42,7 @@ const slot = (k: number, lo: number, hi: number) => (k >= lo && k < hi ? (k - lo
 
 export const MORPHS: Record<MorphId, MorphDef> = {
   writing: {
-    label: "Writing", blurb: "A quill writes lines across an unrolled scroll.", accent: GOLD,
+    ...SPELL_META["writing"],
     shape: (p, t, g) => {
       const [a, b, c] = p.r;
       const prog = frac(t / 7);
@@ -79,7 +79,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   sketching: {
-    label: "Sketching", blurb: "A pencil draws a star on an easel.", accent: GOLD,
+    ...SPELL_META["sketching"],
     shape: (p, t, g) => {
       const [a, b, c] = p.r;
       const prog = min(1, frac(t / 6) * 1.2);
@@ -110,7 +110,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   solving: {
-    label: "Solving", blurb: "A Rubik's cube scrambles a layer, then solves it.", accent: TEAL,
+    ...SPELL_META["solving"],
     shape: (p, t) => {
       const [a, b] = p.r;
       const S = 0.9, face = floor(p.k * 6);
@@ -119,19 +119,17 @@ export const MORPHS: Record<MorphId, MorphDef> = {
       const gap = (x: number) => { const f = frac((x / S + 1) * 1.5); return f < 0.07 || f > 0.93; };
       p.s = 1.6;
       p.c = gap(u) || gap(w) ? "#151515" : ["#D8402F", "#E8772E", "#F5F2EA", "#F2C230", "#3E9B4F", "#2F6FD6"][face];
-      const step = floor(t / 1.8), q = frac(t / 1.8);
-      const ang = (smooth(q / 0.35) - smooth((q - 0.5) / 0.35)) * (PI / 2) * (step % 2 ? 1 : -1);
-      const axis = (["y", "x", "y", "z"] as const)[step % 4];
-      const layer = [1, -1, 0, 1, -1][step % 5];
-      const coord = v[axis];
-      if ((coord < -S / 3 ? -1 : coord > S / 3 ? 1 : 0) === layer) v.applyAxisAngle(axis === "x" ? X : axis === "y" ? Y : Z, ang);
-      v.applyEuler(new THREE.Euler(0.55, 0.75 + sin(t * 0.4) * 0.25, 0));
+      const f = rubikFrame(t), unit = (2 * S) / 3;
+      const centre = new THREE.Vector3(...(["x", "y", "z"] as const).map((k) => Math.max(-1, Math.min(1, Math.round(v[k] / unit))) * unit) as [number, number, number]);
+      rubikApply(f, v, centre, unit);
+      v.applyAxisAngle(Y, f.spin).applyEuler(new THREE.Euler(0.55, 0.75 + sin(t * 0.4) * 0.25, 0));
+      v.y += f.toss;
       p.out.copy(v).add(new THREE.Vector3(0, 0.15, 0));
     },
   },
 
   listening: {
-    label: "Listening", blurb: "Big headphones, with sound waves rolling into each cup.", accent: TEAL,
+    ...SPELL_META["listening"],
     shape: (p, t, g) => {
       const [a, b, c] = p.r;
       let u: number;
@@ -157,7 +155,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   thinking: {
-    label: "Thinking", blurb: "A thought cloud with bubbles drifting up to it.", accent: TEAL,
+    ...SPELL_META["thinking"],
     shape: (p, t) => {
       const [a, b, c] = p.r;
       if (p.k < 0.8) {
@@ -179,7 +177,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   orbit: {
-    label: "Orbit", blurb: "A banded ringed planet with two moons.", accent: GOLD,
+    ...SPELL_META["orbit"],
     shape: (p, t, g) => {
       const [a, b, c] = p.r;
       const tilt = new THREE.Euler(0.42, 0, 0.32);
@@ -202,7 +200,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   radar: {
-    label: "Radar", blurb: "A radar screen: grid, sweeping beam and blips.", accent: TEAL,
+    ...SPELL_META["radar"],
     shape: (p, t) => {
       const [a, b] = p.r;
       const R = 1.55, sweep = -t * 1.8;
@@ -229,7 +227,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   progress: {
-    label: "Progress", blurb: "An hourglass runs out, then flips.", accent: GOLD,
+    ...SPELL_META["progress"],
     shape: (p, t) => {
       const [a, b, c] = p.r;
       const T = 6, q = frac(t / T), run = clamp01(q / 0.86), flip = smooth((q - 0.88) / 0.12);
@@ -253,7 +251,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   dictating: {
-    label: "Speaking", blurb: "A studio microphone with its voice rippling out.", accent: RED,
+    ...SPELL_META["dictating"],
     shape: (p, t) => {
       const [a, b, c] = p.r;
       const head = new THREE.Vector3(0, 0.95, 0);
@@ -281,7 +279,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   sending: {
-    label: "Sending", blurb: "A paper plane loops away with a dotted trail.", accent: TEAL,
+    ...SPELL_META["sending"],
     shape: (p, t) => {
       const [a, b] = p.r;
       const path = (tt: number) => new THREE.Vector3(sin(tt * 1.1) * 1.6, 0.4 + sin(tt * 2.2) * 0.6, cos(tt * 1.1) * 0.7);
@@ -300,7 +298,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   receiving: {
-    label: "Receiving", blurb: "A paper plane glides into a mailbox and the flag pops up.", accent: GOLD,
+    ...SPELL_META["receiving"],
     shape: (p, t) => {
       const [a, b, c] = p.r;
       const W = 0.48, L = 0.95, Y0 = -0.3, Y1 = 0.25;
@@ -357,7 +355,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   uploading: {
-    label: "Uploading", blurb: "A cloud with an arrow lifting into it.", accent: TEAL,
+    ...SPELL_META["uploading"],
     shape: (p, t, g) => {
       const [a, b, c] = p.r;
       let u: number;
@@ -385,7 +383,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   bouncing: {
-    label: "Bouncing", blurb: "Rolls into a beach ball and bounces.", accent: RED,
+    ...SPELL_META["bouncing"],
     shape: (p, t) => {
       const [a, b, c] = p.r;
       const h = abs(sin(t * 3)), squash = 1 - 0.3 * (1 - h) ** 6;
@@ -403,7 +401,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   alerting: {
-    label: "Alerting", blurb: "A swinging bell ringing out.", accent: RED,
+    ...SPELL_META["alerting"],
     shape: (p, t) => {
       const [a, b, c] = p.r;
       const swing = sin(t * 7) * 0.3, pivot = new THREE.Vector3(0, 1.45, 0);
@@ -428,7 +426,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
   },
 
   "powering-down": {
-    label: "Powering down", blurb: "A power symbol that dims and blinks off.", accent: "#9DA48E",
+    ...SPELL_META["powering-down"],
     shape: (p, t) => {
       const [a, b] = p.r;
       const q = frac(t / 5), dim = smooth((q - 0.25) / 0.45);
@@ -444,7 +442,7 @@ export const MORPHS: Record<MorphId, MorphDef> = {
     },
   },
 };
-export const MORPH_IDS = Object.keys(MORPHS) as MorphId[];
+export { MORPH_IDS };
 
 /** Paper-plane point: two wings and a keel; u picks the triangle. */
 function planePoint(u: number, a: number, b: number, scale: number) {
@@ -555,11 +553,12 @@ export class Morpher {
     const mat = new THREE.ShaderMaterial({ vertexShader: vert, fragmentShader: frag, uniforms: { uScale: { value: 500 } } });
     this.dots = new THREE.Points(geo, mat);
     this.dots.frustumCulled = false;
-    const sizeV = new THREE.Vector2();
+    const view = new THREE.Vector4();
     this.dots.onBeforeRender = (renderer, _s, camera) => {
       const fov = (camera as THREE.PerspectiveCamera).fov ?? 30;
-      renderer.getDrawingBufferSize(sizeV);
-      mat.uniforms.uScale.value = sizeV.y / (2 * Math.tan(THREE.MathUtils.degToRad(fov / 2)));
+      // the current viewport, so one renderer can draw many goblins in their own tiles
+      renderer.getCurrentViewport(view);
+      mat.uniforms.uScale.value = view.w / (2 * Math.tan(THREE.MathUtils.degToRad(fov / 2)));
     };
     this.group.add(this.dots);
 
@@ -596,8 +595,14 @@ export class Morpher {
   set(id: MorphId | null) { this.id = id; }
 
   /** Call after animate() each frame. */
+  /** Freezes the shapes' own animation at this time (reduced motion); transitions still run. */
+  freeze: number | null = null;
+
+  /** Where the spell is: m 0 = goblin … 1 = formed; xfade 0..1 while flowing between spells. */
+  get progress() { return { m: this.m, xfade: this.xfade, shown: this.shown, target: this.id }; }
+
   update(t: number) {
-    const dt = min(0.05, max(0, t - this.last));
+    const dt = min(0.25, max(0, t - this.last)); // same at normal frame rates; keeps transitions on time when frames are slow
     this.last = t;
     // spell to spell: the dots flow straight into the new object, no goblin in between
     if (this.id && this.shown && this.id !== this.shown && this.m > 0.05) {
@@ -625,11 +630,12 @@ export class Morpher {
     this.group.visible = true;
 
     const def = this.shown ? MORPHS[this.shown] : null;
+    const st = this.freeze ?? t;
     this.runeMat.color.set(def?.accent ?? GOLD);
     this.ringOn += ((this.circle ? 1 : 0) - this.ringOn) * 0.12;
     const cs = smooth(m) * this.ringOn;
     this.ring.scale.setScalar(0.2 + cs * 0.8);
-    this.ring.rotation.z = t * 0.6;
+    this.ring.rotation.z = st * 0.6;
     this.ring.visible = cs > 0.02;
 
     // solid mode: once formed, the dots settle into the toon object
@@ -645,7 +651,7 @@ export class Morpher {
       const on = id === this.shown && this.solidOn > 0.01;
       solid.group.visible = on;
       if (!on) continue;
-      solid.update(t);
+      solid.update(st);
       const k = smooth(this.solidOn);
       solid.group.scale.setScalar(0.6 + 0.4 * k + sin(k * PI) * 0.08);
     }
@@ -655,7 +661,7 @@ export class Morpher {
     for (let i = 0; i < N; i++) {
       const p = this.ps[i];
       p.s = 1; p.c = null;
-      if (def) def.shape(p, t, this.palette);
+      if (def) def.shape(p, st, this.palette);
       // staggered: the top of the goblin lifts off first
       const delay = (1 - p.k) * 0.45;
       const e = smooth((m - delay * (1 - m)) / (1 - delay * 0.5));
@@ -690,10 +696,11 @@ export class Morpher {
     const flare = 0.25 + sin(m * PI) * 1.4 + sin(this.xfade * PI) * 1.2;
     for (let j = 0; j < 32; j++) {
       const idx = (j * 83) % N, v = this.pos[idx], r = this.ps[idx].r;
-      const tw = max(0, sin(t * 4 + j * 1.7));
+      const tw = max(0, sin(st * 4 + j * 1.7));
       this.dummy.position.set(v.x + (r[2] - 0.5) * 0.5, v.y + (r[0] - 0.5) * 0.5, v.z + 0.15);
-      this.dummy.rotation.set(0, 0, t * 2 + j);
-      this.dummy.scale.setScalar(m * tw * flare);
+      this.dummy.rotation.set(0, 0, st * 2 + j);
+      // only twinkle on dots that are showing: hidden ones (a landed plane's trail, a solid object) stay dark
+      this.dummy.scale.setScalar(m * tw * flare * min(1, (this.sizeAttr.array as Float32Array)[idx] / DOT));
       this.dummy.updateMatrix();
       this.stars.setMatrixAt(j, this.dummy.matrix);
     }

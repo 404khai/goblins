@@ -4,3 +4,4 @@ dist
 *.log
 # third-party reference images, not ours to redistribute
 references/
+dist-site
