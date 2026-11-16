@@ -1,6 +1,7 @@
 import { EXPRESSION_IDS } from "./expressions";
 import { goblinSvg } from "./svg";
-import type { Goblin } from "./types";
+import { MORPH_IDS } from "./morph";
+import { DEFAULT_CLAN, OPTIONS, type Goblin } from "./types";
 
 export const SCHEMA_VERSION = 1;
 
@@ -8,13 +9,31 @@ export function toJSON(g: Goblin | Goblin[]) {
   return JSON.stringify({ $schema: "goblins/v1", version: SCHEMA_VERSION, goblins: Array.isArray(g) ? g : [g] }, null, 2);
 }
 
-/** Accepts a goblins/v1 file, a bare goblin object, or an array of goblins. */
+/**
+ * Accepts a goblins/v1 file, a bare goblin object, or an array of goblins. Missing traits are
+ * filled from a default goblin, and unknown values fall back, so partial JSON still works.
+ */
 export function fromJSON(text: string): Goblin[] {
   const v = JSON.parse(text);
   const list = Array.isArray(v) ? v : Array.isArray(v?.goblins) ? v.goblins : [v];
-  if (!list.length || !list.every((g: Goblin) => g && typeof g.skin === "string" && typeof g.hat === "string"))
-    throw new Error("That file has no goblins in it. Export one from the studio and try again.");
-  return list.map((g: Goblin, i: number) => ({ ...g, extras: g.extras ?? [], expression: g.expression ?? "idle", id: `g${Date.now()}${i}` }));
+  if (!list.length || !list.every((g: unknown) => g && typeof g === "object" && !Array.isArray(g)))
+    throw new Error("No goblins found. Paste a goblin object like { \"name\": \"Snig\", \"hat\": \"gnome\" }.");
+  const base = DEFAULT_CLAN[0];
+  const hex = /^#[0-9a-f]{6}$/i;
+  return list.map((raw: Record<string, unknown>, i: number) => {
+    const g = { ...base, extras: [] as string[], ...raw } as Goblin & Record<string, unknown>;
+    for (const [k, o] of Object.entries(OPTIONS)) {
+      const val = g[k];
+      if (o.multi) g[k] = Array.isArray(val) ? val.filter((x) => o.values.includes(String(x))) : [];
+      else if (o.color) g[k] = typeof val === "string" && hex.test(val) ? val : (base as never)[k];
+      else if (!o.values.includes(String(val))) g[k] = (base as never)[k];
+    }
+    if (!(EXPRESSION_IDS as string[]).includes(String(g.expression))) g.expression = "idle";
+    if (g.morph != null && !(MORPH_IDS as string[]).includes(String(g.morph))) g.morph = null;
+    g.name = typeof g.name === "string" && g.name.trim() ? g.name.slice(0, 16) : `Goblin ${i + 1}`;
+    g.id = `g${Date.now()}${i}`;
+    return g as Goblin;
+  });
 }
 
 export const toSVG = (g: Goblin, size = 512) => goblinSvg(g, { size, idPrefix: slug(g.name) });

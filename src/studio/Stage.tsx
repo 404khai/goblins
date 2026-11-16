@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { buildGoblin, disposeRig, type Rig } from "../goblin/build";
 import { animate } from "../goblin/expressions";
-import { Morpher } from "../goblin/morph";
+import { Morpher, type SpellStyle } from "../goblin/morph";
 import type { Goblin } from "../goblin/types";
 
 export type View = "clan" | "closeup";
@@ -13,16 +13,18 @@ interface Props {
   view: View;
   onSelect: (i: number) => void;
   onView: (v: View) => void;
+  circle: boolean;
+  spellStyle: SpellStyle;
 }
 
 interface Actor { rig: Rig; key: string; home: THREE.Vector3; spin: number; morph?: Morpher }
 
 const traitKey = ({ name, expression, morph, ...traits }: Goblin) => JSON.stringify(traits);
 
-export default function Stage({ clan, selected, view, onSelect, onView }: Props) {
+export default function Stage({ clan, selected, view, onSelect, onView, circle, spellStyle }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const live = useRef({ clan, selected, view, onSelect, onView });
-  live.current = { clan, selected, view, onSelect, onView };
+  const live = useRef({ clan, selected, view, onSelect, onView, circle, spellStyle });
+  live.current = { clan, selected, view, onSelect, onView, circle, spellStyle };
   const syncRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -197,7 +199,7 @@ export default function Stage({ clan, selected, view, onSelect, onView }: Props)
         animate(a.rig, clan[i].expression, t + i * 0.37, rel, reduce);
         const spell = clan[i].morph ?? null;
         if (spell && !a.morph) a.morph = new Morpher(a.rig, clan[i]);
-        if (a.morph) { a.morph.set(spell); a.morph.update(t); }
+        if (a.morph) { a.morph.circle = live.current.circle; a.morph.style = live.current.spellStyle; a.morph.set(spell); a.morph.update(t); }
       });
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);

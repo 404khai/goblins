@@ -4,7 +4,7 @@ import { GoblinAvatar } from "../goblin/react";
 import { Nav } from "../site/Chrome";
 import Stage, { type View } from "./Stage";
 import { EXPRESSIONS, EXPRESSION_IDS } from "../goblin/expressions";
-import { MORPHS, MORPH_IDS, type MorphId } from "../goblin/morph";
+import { MORPHS, MORPH_IDS, type MorphId, type SpellStyle } from "../goblin/morph";
 import { DEFAULT_CLAN, NAMES, OPTIONS, randomGoblin, type ExpressionId, type Goblin } from "../goblin/types";
 
 const STORE = "goblins.v2";
@@ -21,6 +21,11 @@ export default function App() {
   const [clan, setClan] = useState<Goblin[]>(load);
   const [sel, setSel] = useState(0);
   const [view, setView] = useState<View>("clan");
+  const [circle, setCircle] = useState(() => { try { return localStorage.getItem("goblins.circle") !== "off"; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem("goblins.circle", circle ? "on" : "off"); } catch {} }, [circle]);
+  const [spellStyle, setSpellStyle] = useState<SpellStyle>(() => { try { return localStorage.getItem("goblins.spellStyle") === "solid" ? "solid" : "dots"; } catch { return "dots"; } });
+  useEffect(() => { try { localStorage.setItem("goblins.spellStyle", spellStyle); } catch {} }, [spellStyle]);
+  const [paste, setPaste] = useState("");
   const g = clan[sel];
 
   useEffect(() => {
@@ -51,6 +56,33 @@ export default function App() {
   const copy = async (text: string, what: string) => {
     try { await navigator.clipboard.writeText(text); say(`Copied ${what}`); } catch { say("Copy blocked here. Select the text and copy it."); }
   };
+  const addFromText = (text: string) => {
+    try {
+      const list = fromJSON(text);
+      setClan((c) => [...c, ...list]);
+      setSel(clan.length);
+      setView("closeup");
+      setPaste("");
+      say(`Added ${list.length === 1 ? list[0].name : `${list.length} goblins`}`);
+      return true;
+    } catch (e) {
+      say(e instanceof SyntaxError ? "That isn't valid JSON. Check for a missing quote or comma." : (e as Error).message);
+      return false;
+    }
+  };
+  // paste a goblin anywhere on the page (outside text fields) to add it
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.closest("input, textarea")) return;
+      const text = e.clipboardData?.getData("text") ?? "";
+      if (!text.trim().startsWith("{") && !text.trim().startsWith("[")) return;
+      e.preventDefault();
+      addFromText(text);
+    };
+    addEventListener("paste", onPaste);
+    return () => removeEventListener("paste", onPaste);
+  });
   const importFile = async (f?: File) => {
     if (!f) return;
     try {
@@ -66,7 +98,7 @@ export default function App() {
     <Nav current="Studio" />
     <div className="app">
       <section className="stage">
-        <Stage clan={clan} selected={sel} view={view} onSelect={setSel} onView={setView} />
+        <Stage clan={clan} selected={sel} view={view} onSelect={setSel} onView={setView} circle={circle} spellStyle={spellStyle} />
         <header className="brand">
           <h1>Goblins</h1>
           <p>Avatar bundle · {clan.length} in the clan</p>
@@ -109,15 +141,27 @@ export default function App() {
         <div className="group">
           <div className="grouphead">
             <h2>Spell</h2>
-            <button type="button" className="link" onClick={() => setClan((c) => c.map((x) => ({ ...x, morph: g.morph ?? null })))}>
-              Everyone casts this
-            </button>
+            <span className="spell-tools">
+              <button type="button" id="rune-circle" className="link" aria-pressed={circle} onClick={() => setCircle((v) => !v)}>
+                Rune circle: {circle ? "on" : "off"}
+              </button>
+              <button type="button" className="link" onClick={() => setClan((c) => c.map((x) => ({ ...x, morph: g.morph ?? null })))}>
+                Everyone casts this
+              </button>
+            </span>
           </div>
           <div className="chips">
             <button type="button" id="spell-none" className="chip" aria-pressed={!g.morph} onClick={() => update({ morph: null })}>None</button>
             {MORPH_IDS.map((id: MorphId) => (
               <button key={id} id={`spell-${id}`} type="button" className="chip spell" aria-pressed={g.morph === id} onClick={() => update({ morph: id })}>
                 {MORPHS[id].label}
+              </button>
+            ))}
+          </div>
+          <div className="seg" role="group" aria-label="Spell style">
+            {(["dots", "solid"] as SpellStyle[]).map((s) => (
+              <button key={s} type="button" id={`spell-style-${s}`} aria-pressed={spellStyle === s} onClick={() => setSpellStyle(s)}>
+                {s === "dots" ? "Dots" : "Solid"}
               </button>
             ))}
           </div>
@@ -167,6 +211,9 @@ export default function App() {
             <button type="button" className="chip" onClick={() => fileRef.current?.click()}>Import JSON…</button>
             <input id="import-json" ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => { importFile(e.target.files?.[0]); e.target.value = ""; }} />
           </div>
+          <label htmlFor="paste-json" className="paste-label">Paste goblin JSON</label>
+          <textarea id="paste-json" className="paste" rows={4} spellCheck={false} placeholder='{ "name": "Snig", "skin": "#6FA35A", "hat": "gnome", … }' value={paste} onChange={(e) => setPaste(e.target.value)} />
+          <button type="button" className="chip" disabled={!paste.trim()} onClick={() => addFromText(paste)}>Add goblin from JSON</button>
           <p className="note" role="status">{note}</p>
         </div>
 

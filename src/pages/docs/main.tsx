@@ -123,10 +123,12 @@ export function Profile() {
           </Sect>
 
           <Sect id="spells" eyebrow="04 · Agents" title="Spells">
-            <p>A spell transforms the goblin into what it is doing, the way an agent shows its state. The body dissolves into particles in the goblin's own colors, they swirl over a rune circle, and reform as the shape. Clear the spell and they fly back into a goblin. Switching spells dissolves fully before reforming. Spells are 3D only; SVG exports show the expression.</p>
+            <p>A spell transforms the goblin into what it is doing, the way an agent shows its state. The body dissolves into fine dots in the goblin's own colors and reforms as an object. Switching spells flows the dots straight from one object to the next; clearing the spell (null) sends them back into the goblin. A rune circle glows underneath unless you pass circle={false}. Spells are 3D only; SVG exports show the expression.</p>
             <Code>{`
 <Goblin3D goblin={bramble} morph="writing" />    // cast
 <Goblin3D goblin={bramble} morph={null} />       // back to a goblin
+<Goblin3D goblin={bramble} morph="solving" circle={false} />  // no rune circle
+<Goblin3D goblin={bramble} morph="receiving" spellStyle="solid" /> // settle into toon objects
 
 // or save it on the goblin itself
 const busy = { ...bramble, morph: "uploading" };
@@ -161,6 +163,8 @@ spell.update(seconds);
                 <tbody>
                   <tr><td><code>goblin</code></td><td>Goblin</td><td>required</td><td>The recipe.</td></tr>
                   <tr><td><code>morph</code></td><td>MorphId | null</td><td><code>goblin.morph</code></td><td>3D only. Casts a spell.</td></tr>
+                  <tr><td><code>circle</code></td><td>boolean</td><td>true</td><td>3D only. The rune circle under a spell.</td></tr>
+                  <tr><td><code>spellStyle</code></td><td>"dots" | "solid"</td><td>"dots"</td><td>3D only. Keep the formed object as dots, or settle it into outlined toon meshes.</td></tr>
                   <tr><td><code>expression</code></td><td>ExpressionId</td><td><code>goblin.expression</code></td><td>Overrides the goblin's saved mood.</td></tr>
                   <tr><td><code>size</code></td><td>number | string</td><td>96 / 240</td><td>Pixels or any CSS length.</td></tr>
                   <tr><td><code>hands</code></td><td>boolean</td><td>true</td><td>SVG only. Hide the floating mitts for tight crops.</td></tr>
@@ -193,7 +197,7 @@ import { Bramble } from "./Bramble";
           </Sect>
 
           <Sect id="json" eyebrow="07 · Files" title="JSON format">
-            <p>Clan files hold one or more goblins. The studio imports any of: this wrapper, a bare goblin object, or an array of goblins.</p>
+            <p>Clan files hold one or more goblins. The studio imports any of: this wrapper, a bare goblin object, or an array of goblins. Paste one into the studio's JSON box, or press paste anywhere on the studio page.</p>
             <Code>{toJSON(BRAMBLE)}</Code>
           </Sect>
 

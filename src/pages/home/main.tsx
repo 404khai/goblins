@@ -26,6 +26,8 @@ function Spells() {
   const [spell, setSpell] = useState<MorphId>("writing");
   const [auto, setAuto] = useState(true);
   const [who, setWho] = useState(2);
+  const [circle, setCircle] = useState(true);
+  const [solid, setSolid] = useState(false);
   useEffect(() => {
     if (!auto) return;
     const id = setInterval(() => setSpell((s) => MORPH_IDS[(MORPH_IDS.indexOf(s) + 1) % MORPH_IDS.length]), 6500);
@@ -34,13 +36,13 @@ function Spells() {
   return (
     <section className="sect spells">
       <div className="spells-stage">
-        <Goblin3D goblin={DEFAULT_CLAN[who]} expression="idle" morph={spell} size="100%" />
+        <Goblin3D goblin={DEFAULT_CLAN[who]} expression="idle" morph={spell} circle={circle} spellStyle={solid ? "solid" : "dots"} size="100%" />
         <span className="spells-label mono">{DEFAULT_CLAN[who].name} is {MORPHS[spell].label.toLowerCase()}</span>
       </div>
       <div className="sect-head">
         <span className="eyebrow">Spells</span>
         <h2>They turn into what they're doing.</h2>
-        <p>Give a goblin a job and it dissolves into its own colors, swirls over a rune circle, and reforms as the work: a quill writing a scroll, a cube solving itself, an ear catching sound. Made for agents and assistants that need to show their state.</p>
+        <p>Give a goblin a job and it dissolves into fine dots of its own colors and reforms as the work: a quill writing a scroll, a Rubik's cube solving itself, a paper plane gliding into a mailbox. Switch jobs and the dots flow straight into the next one. Made for agents and assistants that need to show their state.</p>
         <div className="chips">
           {MORPH_IDS.map((id) => (
             <button key={id} id={`home-spell-${id}`} type="button" className="chip" aria-pressed={spell === id} onClick={() => { setSpell(id); setAuto(false); }}>
@@ -54,6 +56,12 @@ function Spells() {
               {DEFAULT_CLAN[i].name}
             </button>
           ))}
+          <button type="button" id="home-circle" className="chip" aria-pressed={circle} onClick={() => setCircle((v) => !v)}>
+            Rune circle
+          </button>
+          <button type="button" id="home-solid" className="chip" aria-pressed={solid} onClick={() => setSolid((v) => !v)}>
+            Solid
+          </button>
         </div>
       </div>
     </section>
