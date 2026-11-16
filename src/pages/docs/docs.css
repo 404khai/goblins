@@ -1,0 +1,55 @@
+.doc-banner { position: relative; overflow: hidden; display: grid; grid-template-columns: 320px minmax(0, 1fr); border-bottom: 1px solid var(--line); }
+.doc-banner-art { position: relative; overflow: hidden; display: grid; place-items: center; min-height: 280px; border-right: 1px solid var(--line); background: var(--panel); }
+.doc-banner-art .logo { position: relative; z-index: 1; }
+.dba-f1 { width: 56px; left: 18px; bottom: -2px; }
+.dba-f2 { width: 52px; right: 22px; bottom: -2px; }
+.dba-stones { width: 190px; left: 60px; bottom: -14px; animation: none; }
+.doc-banner-copy { display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 48px 40px; max-width: 760px; }
+.doc-banner h1 { font: 400 clamp(42px, 5.5vw, 76px)/1 var(--display); }
+.doc-banner p { font-size: 17px; color: var(--ink-2); }
+.doc-lamp { width: 70px; right: 40px; bottom: -1px; }
+
+.doc-body { display: grid; grid-template-columns: 240px minmax(0, 1fr); padding: 0 var(--gutter); }
+.doc-toc { position: sticky; top: 90px; align-self: start; display: flex; flex-direction: column; gap: 10px; padding: 56px 0; font-size: 14px; }
+.doc-toc b { font: 400 18px var(--display); margin-bottom: 4px; }
+.doc-toc a { display: flex; align-items: center; gap: 12px; color: var(--muted); }
+.doc-toc a i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); flex: none; }
+.doc-toc a:hover, .doc-toc a[aria-current] { color: var(--ink); }
+.doc-toc a[aria-current] i { background: var(--accent); box-shadow: 0 0 0 3px var(--chip); }
+
+.doc-main { min-width: 0; padding-bottom: 80px; }
+.doc-sect { display: flex; flex-direction: column; gap: 16px; padding: 56px 0; border-bottom: 1px solid var(--line); scroll-margin-top: 80px; max-width: 860px; }
+.doc-sect:last-child { border-bottom: 0; }
+.doc-sect h2 { font: 400 clamp(30px, 3.4vw, 44px)/1.05 var(--display); }
+.doc-sect h3 { font: 700 17px var(--body); margin-top: 12px; }
+.doc-sect > p { color: var(--ink-2); max-width: 68ch; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+.doc-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.doc-table th { text-align: left; font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); background: var(--panel); }
+.doc-table th, .doc-table td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.doc-table tr:last-child td { border-bottom: 0; }
+.doc-table td:first-child { white-space: nowrap; }
+.pill { margin-left: 6px; font: 500 10px var(--mono); padding: 2px 6px; border-radius: 999px; background: var(--sun); color: #1d2318; }
+.swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.swatches i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink); }
+.swatches em { margin-left: 6px; font-style: normal; color: var(--muted); font-size: 13px; }
+
+.expr-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.expr-grid figure { margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--chip); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.expr-grid figure > span { aspect-ratio: 1; }
+.expr-grid figcaption { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.expr-grid figcaption code { align-self: flex-start; }
+
+@media (max-width: 900px) {
+  .doc-banner { grid-template-columns: 1fr; }
+  .doc-banner-art { border-right: 0; border-bottom: 1px solid var(--line); min-height: 220px; }
+  .doc-banner-copy { padding: 32px var(--gutter); }
+  .doc-lamp { display: none; }
+  .doc-body { grid-template-columns: 1fr; }
+  .doc-toc { position: sticky; top: 108px; z-index: 4; flex-direction: row; align-items: center; gap: 18px; margin: 0 calc(-1 * var(--gutter)); padding: 12px var(--gutter); overflow-x: auto; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .doc-toc b { display: none; }
+  .doc-toc a { white-space: nowrap; }
+  .expr-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) { .expr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

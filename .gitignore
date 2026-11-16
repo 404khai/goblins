@@ -1,0 +1,6 @@
+node_modules
+dist
+.DS_Store
+*.log
+# third-party reference images, not ours to redistribute
+references/

@@ -1,0 +1,365 @@
+<title>Goblins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@400;600;700&family=DM+Mono:wght@500&display=swap">
+<style>
+/* Layout: 3D lineup canvas on the left, a workbench panel on the right; stacks on phones. Flat toon colors, no gradients. */
+:root {
+  --bg: #EFEBDD;        /* mushroom paper */
+  --stage: #E3DCC6;
+  --ink: #1D2318;
+  --muted: #5E6552;
+  --line: #CFC6AA;
+  --accent: #D8402F;    /* gnome-hat red */
+  --chip: #F8F5EA;
+  --display: "Bagel Fat One", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, sans-serif;
+  --mono: "DM Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #171B14; --stage: #20261C; --ink: #ECE8D8; --muted: #9DA48E; --line: #343C2C; --accent: #EE5A44; --chip: #252C20; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #171B14; --stage: #20261C; --ink: #ECE8D8; --muted: #9DA48E; --line: #343C2C; --accent: #EE5A44; --chip: #252C20; color-scheme: dark }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 14px; }
+.app { display: grid; grid-template-columns: minmax(0,1fr) 340px; height: 100%; }
+.stage { position: relative; background: var(--stage); min-width: 0; min-height: 0; }
+canvas#c { display: block; width: 100%; height: 100%; cursor: grab; }
+.brand { position: absolute; left: 20px; top: 16px; pointer-events: none; }
+.brand h1 { font-family: var(--display); font-weight: 400; font-size: 44px; margin: 0; line-height: 1; letter-spacing: .5px; }
+.brand p { margin: 4px 0 0; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.hint { position: absolute; left: 20px; bottom: 14px; font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .06em; pointer-events: none; }
+.panel { border-left: 1px solid var(--line); overflow-y: auto; padding: 18px 18px 28px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.who { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.who input { font-family: var(--display); font-size: 30px; background: none; border: none; color: var(--ink); width: 100%; min-width: 0; padding: 0; }
+.who input:focus { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.tag { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.group { display: flex; flex-direction: column; gap: 8px; }
+.group h2 { margin: 0; font-size: 11px; font-family: var(--mono); font-weight: 500; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 600 13px var(--body); background: var(--chip); color: var(--ink); border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.chip:hover { border-color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+.sw[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--bg) inset; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.actions { display: flex; gap: 8px; }
+.btn { flex: 1; font: 700 14px var(--body); padding: 10px; border-radius: 10px; border: 2px solid var(--ink); background: var(--accent); color: #fff; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--ink); }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 58% 42%; }
+  .panel { border-left: none; border-top: 1px solid var(--line); padding-inline: 16px; }
+  .brand h1 { font-size: 32px; }
+}
+</style>
+
+<div class="app">
+  <div class="stage">
+    <canvas id="c" aria-label="Lineup of six 3D goblin avatars"></canvas>
+    <div class="brand"><h1>Goblins</h1><p>Avatar bundle · 6 of the clan</p></div>
+    <div class="hint">Click a goblin to dress it · drag to orbit</div>
+  </div>
+  <aside class="panel">
+    <div class="who"><input id="name" aria-label="Goblin name" maxlength="16"><span class="tag" id="tag"></span></div>
+    <div id="controls" style="display:flex;flex-direction:column;gap:18px"></div>
+    <div class="actions">
+      <button class="btn" id="rand">Reroll this one</button>
+      <button class="btn ghost" id="randAll">Reroll clan</button>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const OPTS = {
+  skin:  { label: "Skin", type: "color", values: ["#6FA35A","#9AAE4C","#4E9C8E","#C07A55","#9C86C9","#7C8A99"] },
+  eyes:  { label: "Eyes", values: ["round","wonky","lidded","angry","happy","sleepy","dots","visor"] },
+  hat:   { label: "Hat", values: ["gnome","beret","beanie","none"] },
+  hatColor: { label: "Hat color", type: "color", values: ["#D8402F","#2F4AA8","#E0A92B","#2E6B46","#25221F","#E35D9C"] },
+  beard: { label: "Beard", values: ["full","pointy","forked","braid","none"] },
+  beardColor: { label: "Beard color", type: "color", values: ["#EDE8DF","#C9652B","#9A948C","#5B3B28","#2A2420"] },
+  eyewear: { label: "Eyewear", values: ["none","round","shades","monocle"] },
+  scarf: { label: "Scarf", values: ["none","wrap","long"] },
+  scarfColor: { label: "Scarf color", type: "color", values: ["#E0A92B","#2F4AA8","#D8402F","#ECE6D6","#2E6B46"] },
+  extras: { label: "Extras", multi: true, values: ["headphones","earring","pipe"] },
+};
+const NAMES = ["Grub","Nettle","Bramble","Pip","Mossbeard","Wort","Snig","Tansy","Burdock","Fennick","Gristle","Hob"];
+const pick = a => a[Math.floor(Math.random()*a.length)];
+function randomGoblin(name) {
+  const g = {}; for (const k in OPTS) if (!OPTS[k].multi) g[k] = pick(OPTS[k].values);
+  g.extras = OPTS.extras.values.filter(() => Math.random() < .3);
+  g.name = name || pick(NAMES); return g;
+}
+const DEFAULTS = [
+  { name:"Grub", skin:"#6FA35A", eyes:"round", hat:"gnome", hatColor:"#D8402F", beard:"full", beardColor:"#EDE8DF", eyewear:"round", scarf:"none", scarfColor:"#E0A92B", extras:[] },
+  { name:"Nettle", skin:"#9C86C9", eyes:"lidded", hat:"beret", hatColor:"#25221F", beard:"pointy", beardColor:"#2A2420", eyewear:"none", scarf:"wrap", scarfColor:"#D8402F", extras:["pipe"] },
+  { name:"Bramble", skin:"#4E9C8E", eyes:"visor", hat:"gnome", hatColor:"#2F4AA8", beard:"braid", beardColor:"#9A948C", eyewear:"none", scarf:"none", scarfColor:"#E0A92B", extras:["headphones"] },
+  { name:"Pip", skin:"#C07A55", eyes:"wonky", hat:"beanie", hatColor:"#E0A92B", beard:"forked", beardColor:"#C9652B", eyewear:"none", scarf:"long", scarfColor:"#2F4AA8", extras:["earring"] },
+  { name:"Mossbeard", skin:"#9AAE4C", eyes:"happy", hat:"gnome", hatColor:"#2E6B46", beard:"full", beardColor:"#9A948C", eyewear:"monocle", scarf:"none", scarfColor:"#E0A92B", extras:["pipe"] },
+  { name:"Wort", skin:"#7C8A99", eyes:"angry", hat:"gnome", hatColor:"#E35D9C", beard:"pointy", beardColor:"#EDE8DF", eyewear:"shades", scarf:"wrap", scarfColor:"#ECE6D6", extras:["headphones","earring"] },
+];
+let clan; try { clan = JSON.parse(localStorage.getItem("goblins.v1")); } catch(e) {}
+if (!Array.isArray(clan) || clan.length !== 6) clan = DEFAULTS.map(d => ({...d, extras:[...d.extras]}));
+const save = () => { try { localStorage.setItem("goblins.v1", JSON.stringify(clan)); } catch(e) {} };
+let sel = 0;
+
+// ---------- three ----------
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, .1, 200);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.enablePan = false; controls.enableDamping = true;
+controls.minPolarAngle = 1.1; controls.maxPolarAngle = 1.75;
+controls.minAzimuthAngle = -.7; controls.maxAzimuthAngle = .7;
+scene.add(new THREE.AmbientLight(0xffffff, .55));
+const sun = new THREE.DirectionalLight(0xffffff, .75); sun.position.set(4, 6, 8); scene.add(sun);
+
+const ramp = new THREE.DataTexture(new Uint8Array([110, 190, 255]), 3, 1, THREE.LuminanceFormat);
+ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+const matCache = {};
+const M = c => matCache[c] || (matCache[c] = new THREE.MeshToonMaterial({ color: c, gradientMap: ramp }));
+const FLAT = c => new THREE.MeshBasicMaterial({ color: c });
+const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x1D2318, side: THREE.BackSide });
+const shade = (hex, f) => { const c = new THREE.Color(hex); c.multiplyScalar(f); return "#" + c.getHexString(); };
+
+function mesh(geo, mat, parent, pos, scl, rot, outline = true) {
+  const m = new THREE.Mesh(geo, mat);
+  if (pos) m.position.set(...pos); if (scl) m.scale.set(...scl); if (rot) m.rotation.set(...rot);
+  if (outline) { const o = new THREE.Mesh(geo, OUTLINE); o.scale.setScalar(1.06); m.add(o); }
+  parent.add(m); return m;
+}
+const S = (r, w=32, h=24) => new THREE.SphereGeometry(r, w, h);
+
+function bentCone(r, h, bendX, bendZ) {
+  const g = new THREE.ConeGeometry(r, h, 32, 16); g.translate(0, h/2, 0);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const t = p.getY(i)/h; p.setX(i, p.getX(i) + bendX*t*t*t); p.setZ(i, p.getZ(i) + bendZ*t*t*t); }
+  g.computeVertexNormals(); return g;
+}
+
+function buildGoblin(d) {
+  const root = new THREE.Group(); const head = new THREE.Group(); root.add(head);
+  const skin = M(d.skin), dark = M(shade(d.skin, .82));
+  const pupils = [], lids = [];
+  mesh(S(1), skin, head, [0,0,0], [1.04,.96,.96]);
+  // ears
+  for (const s of [-1,1]) {
+    const ear = mesh(new THREE.ConeGeometry(.24, .9, 20), skin, head, [s*1.12, .08, -.05], [1,1,.45], [0, 0, -s*(Math.PI/2 + .3)]);
+    mesh(new THREE.ConeGeometry(.13, .6, 16), dark, ear, [0,-.06,.07], [1,1,.4], null, false);
+  }
+  mesh(S(.23), dark, head, [0, -.06, .98], [1,.9,1]);
+
+  // eyes
+  const EY = .24, EX = .36, EZ = .82;
+  const white = M("#FFFFFF"), black = FLAT("#141414");
+  const addPupil = (parent, r, z, x=0, y=0) => { const p = mesh(S(r,20,16), black, parent, [x,y,z], [1,1,.5], null, false); p.userData.base = p.position.clone(); pupils.push(p); return p; };
+  const eyeGroups = [];
+  for (const s of [-1,1]) {
+    const eg = new THREE.Group(); eg.position.set(s*EX, EY, EZ); eg.rotation.y = s*.32; head.add(eg); eyeGroups.push(eg);
+    const st = d.eyes;
+    if (st === "round" || st === "lidded" || st === "angry" || (st === "wonky" && s < 0)) {
+      const big = st === "wonky" ? 1.25 : 1;
+      mesh(S(.22*big), white, eg, [0,0,0], [1,1.12,.55]);
+      addPupil(eg, .11*big, .1);
+      if (st === "lidded" || st === "angry") {
+        const lid = mesh(new THREE.SphereGeometry(.235, 24, 12, 0, Math.PI*2, 0, Math.PI/2), skin, eg, [0,0,0], [1.02,1.15,.6], [Math.PI/2 - .3, 0, 0], false);
+        const wrap = new THREE.Group(); wrap.add(lid); eg.add(wrap);
+        lid.rotation.x = .25; lid.position.set(0, .02, 0);
+        if (st === "angry") wrap.rotation.z = s * .5; else wrap.rotation.x = -.15;
+        lids.push(wrap);
+      }
+    } else if (st === "wonky") {
+      mesh(new THREE.BoxGeometry(.44,.32,.2), white, eg, [.04,-.04,0], null, [0,0,-.12]);
+      addPupil(eg, .11, .12, -.02, -.06);
+    } else if (st === "happy" || st === "sleepy") {
+      const arc = mesh(new THREE.TorusGeometry(.13, .04, 10, 24, Math.PI), black, eg, [0, st==="happy"?-.04:.04, .08], null, [0,0, st==="happy"?0:Math.PI], false);
+    } else if (st === "dots") {
+      addPupil(eg, .12, .05);
+    }
+  }
+  if (d.eyes === "visor") {
+    const v = mesh(new THREE.BoxGeometry(1.2,.42,.3), FLAT("#141414"), head, [0, EY, .84], null, null, true);
+    for (const s of [-1,1]) { const p = mesh(new THREE.BoxGeometry(.2,.1,.05), FLAT("#7CF2C8"), v, [s*.26, 0, .16], null, null, false); p.userData.base = p.position.clone(); p.userData.visor = true; pupils.push(p); }
+  }
+
+  // hat
+  const hc = M(d.hatColor);
+  if (d.hat === "gnome") {
+    const hat = mesh(bentCone(1.08, 2.1, .45, -.55), hc, head, [0,.38,-.05], null, [-.12,0,.06]);
+    mesh(new THREE.TorusGeometry(1.03, .11, 12, 48), M(shade(d.hatColor,.8)), head, [0,.42,-.05], [1,1,1], [Math.PI/2 - .12, 0, .06]);
+  } else if (d.hat === "beret") {
+    mesh(S(1.08), hc, head, [-.08,.68,-.05], [1.18,.36,1.14], [.1,0,.22]);
+    mesh(new THREE.CylinderGeometry(.04,.06,.2,10), hc, head, [-.02,1.08,-.05], null, [0,0,.2]);
+  } else if (d.hat === "beanie") {
+    mesh(new THREE.SphereGeometry(1.04,32,16,0,Math.PI*2,0,Math.PI/2), hc, head, [0,.25,0], [1.02,1,1]);
+    mesh(new THREE.CylinderGeometry(1.08,1.08,.28,40), M(shade(d.hatColor,.8)), head, [0,.3,0]);
+    mesh(S(.26), M("#ECE6D6"), head, [0,1.32,0]);
+  }
+
+  // beard
+  const bc = M(d.beardColor);
+  if (d.beard !== "none") for (const s of [-1,1]) mesh(S(.2), bc, head, [s*.2,-.3,.92], [1.5,.6,.65], [0,0,s*.35]);
+  if (d.beard === "full") {
+    mesh(S(.9), bc, head, [0,-.62,.32], [1.05,1.1,.72]);
+    mesh(S(.5), bc, head, [0,-1.25,.42], [1,1,.7]);
+  } else if (d.beard === "pointy") {
+    mesh(new THREE.ConeGeometry(.72, 1.7, 28), bc, head, [0,-1.05,.42], [1,1,.62], [Math.PI + .12,0,0]);
+  } else if (d.beard === "forked") {
+    mesh(S(.7), bc, head, [0,-.6,.38], [1.1,.8,.7]);
+    for (const s of [-1,1]) mesh(new THREE.ConeGeometry(.32, 1.1, 20), bc, head, [s*.28,-1.15,.48], [1,1,.7], [Math.PI+.15,0,-s*.25]);
+  } else if (d.beard === "braid") {
+    mesh(S(.7), bc, head, [0,-.55,.4], [1.1,.75,.7]);
+    [.3,.25,.21,.17].forEach((r,i) => mesh(S(r), bc, head, [0,-1.0-i*.32,.55], [1,.9,1]));
+    mesh(S(.1), M("#D8402F"), head, [0,-2.08,.55]);
+  } else {
+    mesh(new THREE.TorusGeometry(.18,.04,10,24,Math.PI), FLAT("#141414"), head, [0,-.35,.93], null, [0,0,Math.PI], false);
+  }
+
+  // scarf
+  if (d.scarf !== "none") {
+    const sc = M(d.scarfColor);
+    mesh(new THREE.TorusGeometry(.72,.24,16,40), sc, head, [0,-.85,0], [1,1,.9], [Math.PI/2 - .1,0,0]);
+    if (d.scarf === "long") {
+      mesh(new THREE.BoxGeometry(.38,1.1,.14), sc, head, [.62,-1.35,.48], null, [.1,0,.18]);
+      mesh(new THREE.BoxGeometry(.38,.12,.15), M(shade(d.scarfColor,.75)), head, [.72,-1.82,.53], null, [.1,0,.18], false);
+    } else {
+      mesh(S(.2), sc, head, [.45,-.95,.62], [1.1,.9,.8]);
+    }
+  }
+
+  // eyewear
+  const frame = FLAT("#141414"), gold = M("#E0A92B");
+  if (d.eyewear === "round" || d.eyewear === "shades") {
+    for (const s of [-1,1]) {
+      const g = new THREE.Group(); g.position.set(s*EX, EY, EZ+.2); g.rotation.y = s*.32; head.add(g);
+      if (d.eyewear === "round") mesh(new THREE.TorusGeometry(.24,.035,10,32), frame, g, null, null, null, false);
+      else mesh(new THREE.CylinderGeometry(.26,.26,.05,32), frame, g, null, null, [Math.PI/2,0,0], false);
+      mesh(new THREE.BoxGeometry(.04,.04,.9), frame, head, [s*.98, EY+.02, .48], null, [0, s*.35, 0], false);
+    }
+    mesh(new THREE.TorusGeometry(.1,.03,8,16,Math.PI), frame, head, [0,EY,EZ+.26], null, null, false);
+  } else if (d.eyewear === "monocle") {
+    const g = new THREE.Group(); g.position.set(EX, EY, EZ+.2); g.rotation.y = .32; head.add(g);
+    mesh(new THREE.TorusGeometry(.26,.04,10,32), gold, g, null, null, null, false);
+    for (let i = 0; i < 6; i++) mesh(new THREE.TorusGeometry(.035,.012,6,12), gold, head, [EX+.25+i*.03, EY-.25-i*.13, EZ+.12-i*.04], null, [0, i%2?Math.PI/2:0, 0], false);
+  }
+
+  // extras
+  const ex = d.extras || [];
+  if (ex.includes("headphones")) {
+    const hp = FLAT("#25221F"), cup = M("#ECE6D6");
+    const bandR = d.hat === "gnome" ? 1.32 : 1.2;
+    mesh(new THREE.TorusGeometry(bandR,.07,10,40,Math.PI), hp, head, [0,.1,.05], null, null, false);
+    for (const s of [-1,1]) { const c = mesh(new THREE.CylinderGeometry(.34,.34,.24,28), cup, head, [s*1.08,.08,.05], null, [0,0,Math.PI/2]); mesh(new THREE.CylinderGeometry(.22,.22,.26,24), hp, c, null, null, null, false); }
+  }
+  if (ex.includes("earring")) {
+    mesh(new THREE.TorusGeometry(.1,.03,8,20), gold, head, [-1.38,-.05,0], null, [0, Math.PI/2, 0]);
+  }
+  if (ex.includes("pipe")) {
+    const wood = M("#6B4226");
+    mesh(new THREE.CylinderGeometry(.03,.04,.6,10), FLAT("#25221F"), head, [.38,-.42,1.12], null, [.3,0,1.2], false);
+    const bowl = mesh(new THREE.CylinderGeometry(.13,.1,.28,16), wood, head, [.68,-.4,1.2]);
+    mesh(new THREE.CylinderGeometry(.1,.1,.02,16), FLAT("#25221F"), bowl, [0,.14,0], null, null, false);
+  }
+
+  // floor shadow
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.1, 40), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .12 }));
+  shadow.rotation.x = -Math.PI/2; shadow.position.y = -2.1; root.add(shadow);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.3, 48), new THREE.MeshBasicMaterial({ color: 0xD8402F }));
+  ring.rotation.x = -Math.PI/2; ring.position.y = -2.09; root.add(ring);
+
+  root.userData = { head, pupils, eyeGroups, ring, phase: Math.random()*6, blinkAt: 1 + Math.random()*4 };
+  return root;
+}
+
+let actors = [];
+function rebuild(i) {
+  if (actors[i]) { scene.remove(actors[i]); actors[i].traverse(o => o.geometry && o.geometry.dispose()); }
+  const a = buildGoblin(clan[i]); a.userData.idx = i; actors[i] = a; scene.add(a); layout();
+}
+
+function layout() {
+  const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return;
+  const aspect = w / h, cols = aspect < .9 ? 2 : 3, rows = 6 / cols;
+  const dx = 3.9, dy = 5.2;
+  actors.forEach((a, i) => { if (!a) return; const c = i % cols, r = Math.floor(i / cols);
+    a.userData.home = new THREE.Vector3((c - (cols-1)/2)*dx, ((rows-1)/2 - r)*dy - .2, 0); if (!a.userData.placed) { a.position.copy(a.userData.home); a.userData.placed = true; } });
+  const needW = cols*dx + 1.2, needH = rows*dy + .6, t = Math.tan(THREE.MathUtils.degToRad(15));
+  const dist = Math.max(needH/(2*t), needW/(2*t*aspect));
+  camera.aspect = aspect; camera.position.set(0, .4, dist); controls.target.set(0, .1, 0); camera.updateProjectionMatrix();
+}
+function resize() { renderer.setSize(canvas.clientWidth, canvas.clientHeight, false); layout(); }
+new ResizeObserver(resize).observe(canvas);
+
+// pointer: eyes follow, click selects
+const ndc = new THREE.Vector2(), ray = new THREE.Raycaster(); let downAt = null;
+canvas.addEventListener("pointermove", e => { const r = canvas.getBoundingClientRect(); ndc.set((e.clientX-r.left)/r.width*2-1, -((e.clientY-r.top)/r.height*2-1)); });
+canvas.addEventListener("pointerdown", e => downAt = [e.clientX, e.clientY]);
+canvas.addEventListener("pointerup", e => {
+  if (!downAt || Math.hypot(e.clientX-downAt[0], e.clientY-downAt[1]) > 5) return;
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObjects(actors, true)[0]; if (!hit) return;
+  let o = hit.object; while (o && o.userData.idx === undefined) o = o.parent;
+  if (o) select(o.userData.idx);
+});
+
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const clock = new THREE.Clock(), tmp = new THREE.Vector3();
+function tick() {
+  const t = clock.getElapsedTime();
+  controls.update();
+  ray.setFromCamera(ndc, camera);
+  actors.forEach((a, i) => {
+    const u = a.userData, on = i === sel;
+    const s = THREE.MathUtils.lerp(a.scale.x, on ? 1.12 : .92, .12); a.scale.setScalar(s);
+    u.ring.visible = on;
+    u.head.position.y = reduce ? 0 : Math.sin(t*1.6 + u.phase) * (on ? .12 : .06);
+    u.head.rotation.z = reduce ? 0 : Math.sin(t*.9 + u.phase) * .04;
+    // look at pointer target on a plane in front of the clan
+    tmp.copy(ray.ray.direction).multiplyScalar((camera.position.z - 4) / -ray.ray.direction.z).add(ray.ray.origin);
+    const lx = THREE.MathUtils.clamp((tmp.x - a.position.x)/6, -1, 1), ly = THREE.MathUtils.clamp((tmp.y - a.position.y)/6, -1, 1);
+    u.head.rotation.y = THREE.MathUtils.lerp(u.head.rotation.y, lx*.35, .08);
+    u.head.rotation.x = THREE.MathUtils.lerp(u.head.rotation.x, -ly*.2, .08);
+    u.pupils.forEach(p => { const k = p.userData.visor ? .07 : .06; p.position.x = p.userData.base.x + lx*k; p.position.y = p.userData.base.y + ly*k; });
+    // blink
+    const bl = (t % 5) > u.blinkAt && (t % 5) < u.blinkAt + .12 && !reduce;
+    u.eyeGroups.forEach(eg => eg.scale.y = THREE.MathUtils.lerp(eg.scale.y, bl ? .1 : 1, .5));
+  });
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+// ---------- UI ----------
+const $ = id => document.getElementById(id);
+function renderControls() {
+  const d = clan[sel]; $("name").value = d.name; $("tag").textContent = `no. ${String(sel+1).padStart(2,"0")} / 06`;
+  const box = $("controls"); box.innerHTML = "";
+  for (const k in OPTS) {
+    const o = OPTS[k];
+    if (k === "scarfColor" && d.scarf === "none") continue;
+    if (k === "hatColor" && d.hat === "none") continue;
+    if (k === "beardColor" && d.beard === "none") continue;
+    const g = document.createElement("div"); g.className = "group";
+    g.innerHTML = `<h2>${o.label}</h2>`; const row = document.createElement("div"); row.className = "chips"; g.append(row);
+    o.values.forEach(v => {
+      const b = document.createElement("button"); b.type = "button"; b.id = `opt-${k}-${v.replace("#","")}`;
+      const on = o.multi ? d[k].includes(v) : d[k] === v; b.setAttribute("aria-pressed", on);
+      if (o.type === "color") { b.className = "sw"; b.style.background = v; b.setAttribute("aria-label", `${o.label} ${v}`); }
+      else { b.className = "chip"; b.textContent = v; }
+      b.onclick = () => {
+        if (o.multi) d[k] = on ? d[k].filter(x => x !== v) : [...d[k], v]; else d[k] = v;
+        save(); rebuild(sel); renderControls();
+      };
+      row.append(b);
+    });
+    box.append(g);
+  }
+}
+function select(i) { sel = i; renderControls(); }
+$("name").addEventListener("input", e => { clan[sel].name = e.target.value || "Goblin"; save(); });
+$("rand").onclick = () => { clan[sel] = randomGoblin(clan[sel].name); save(); rebuild(sel); renderControls(); };
+$("randAll").onclick = () => { clan = clan.map(g => randomGoblin(g.name)); save(); clan.forEach((_, i) => rebuild(i)); renderControls(); };
+
+clan.forEach((_, i) => rebuild(i));
+resize(); renderControls(); tick();
+</script>

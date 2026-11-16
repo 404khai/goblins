@@ -1,0 +1,56 @@
+/* Changelog: Graft's layout, in the goblins' storybook palette. */
+.cl-head { position: relative; overflow: hidden; display: grid; grid-template-columns: 320px minmax(0, 1fr); border-bottom: 1px solid var(--line); }
+.cl-head-art { position: relative; overflow: hidden; display: grid; place-items: center; min-height: 270px; border-right: 1px solid var(--line); background: var(--panel); }
+.cl-head-art .logo { position: relative; z-index: 1; }
+.cl-h-f1 { width: 54px; left: 16px; bottom: -2px; }
+.cl-h-m { width: 92px; right: -6px; bottom: -2px; }
+.cl-head-copy { display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 48px 40px; }
+.cl-head h1 { font: 400 clamp(52px, 7vw, 96px)/1 var(--display); }
+.cl-head-copy p { font-size: 17px; color: var(--ink-2); }
+.cl-h-tree { right: 40px; bottom: -70px; width: 200px; }
+
+.cl-body { display: grid; grid-template-columns: 240px minmax(0, 1fr); padding: 0 var(--gutter); }
+.cl-months { position: sticky; top: 90px; align-self: start; display: flex; flex-direction: column; gap: 10px; padding: 64px 0; font-size: 14px; }
+.cl-months b { font: 400 20px var(--display); margin-bottom: 6px; }
+.cl-months a { display: flex; align-items: center; gap: 12px; color: var(--muted); }
+.cl-months a i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.cl-months a[aria-current] { color: var(--ink); }
+.cl-months a[aria-current] i { background: var(--accent); box-shadow: 0 0 0 3px var(--chip); }
+
+.cl-entries { min-width: 0; padding-bottom: 96px; }
+.cl-entry { position: relative; padding: 64px 0; border-bottom: 1px solid var(--line); scroll-margin-top: 80px; }
+.cl-entry:last-child { border-bottom: 0; }
+.cl-entry.continues { border-bottom: 1px dashed var(--line); padding-bottom: 40px; }
+.cl-entry.same-day { padding-top: 40px; }
+.cl-entry time { font: 500 13px var(--mono); color: var(--muted); }
+.cl-title { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 900px; margin: 10px 0 16px; }
+.cl-entry h2 { font: 400 clamp(30px, 3.6vw, 46px)/1.05 var(--display); }
+.cl-cameo { flex: none; }
+.cl-tag { display: inline-block; padding: 5px 12px; border-radius: 8px; border: 2px solid var(--ink); font: 700 12px var(--body); letter-spacing: 0.04em; }
+.tag-site { background: var(--sky); color: #fff; }
+.tag-characters { background: var(--sun); color: #1d2318; }
+.tag-foundation { background: var(--ink); color: var(--bg); }
+.cl-lede { max-width: 720px; margin: 24px 0 36px; font: 600 19px/1.5 var(--body); }
+.cl-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 48px; max-width: 980px; }
+.cl-item h3 { font: 400 19px var(--display); margin-bottom: 6px; }
+.cl-item p { font-size: 14.5px; line-height: 1.7; color: var(--ink-2); }
+
+.cl-peek { top: 40px; width: 64px; }
+.cl-peek.right { right: -6px; }
+.cl-peek.left { left: -200px; top: auto; bottom: 40px; width: 110px; }
+
+@media (max-width: 900px) {
+  .cl-head { grid-template-columns: 1fr; }
+  .cl-head-art { min-height: 210px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .cl-head-copy { padding: 32px var(--gutter); padding-right: 120px; }
+  .cl-h-tree { width: 120px; right: -20px; bottom: -40px; }
+  .cl-body { grid-template-columns: 1fr; }
+  .cl-months { position: static; flex-direction: row; align-items: center; gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .cl-months b { margin: 0; }
+  .cl-peek { display: none; }
+  .cl-entry { padding: 48px 0; }
+}
+@media (max-width: 640px) {
+  .cl-items { grid-template-columns: 1fr; gap: 24px; }
+  .cl-cameo { width: 64px !important; height: 64px !important; }
+}
