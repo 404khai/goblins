@@ -12,8 +12,9 @@ export const WINDOW = "M120 206.7C126.5 206.7 132 204 136.7 197.9L178 156.9C183.
 
 const W = 61, H = 101, CY = 255;
 const CX = { L: 204.6, R: 307.5 } as const;
+const MIDX = 255.75;
 
-export type EyeKind = "block" | "happy" | "sad-arc" | "line" | "heart" | "x" | "ring" | "dot" | "star" | "chev" | "plus" | "minus" | "divide" | "equals" | "scan";
+export type EyeKind = "block" | "happy" | "sad-arc" | "line" | "heart" | "x" | "ring" | "dot" | "star" | "chev" | "plus" | "minus" | "divide" | "equals" | "scan" | "percent" | "sqrt" | "approx" | "lt" | "gt" | "plusminus" | "pi" | "power" | "wave";
 /** One eye. lid/base cut the block from the top/bottom (0..1 of height) at its outer and inner corners. */
 /** beam: 0..1, where the scan line sits inside a "scan" eye. */
 export interface Eye { kind?: EyeKind; beam?: number; dx?: number; dy?: number; sx?: number; sy?: number; lid?: [number, number]; base?: [number, number] }
@@ -22,6 +23,15 @@ export interface Face { L: Eye; R: Eye }
 const r = (n: number) => Math.round(n * 10) / 10;
 const poly = (pts: [number, number][]) => "M" + pts.map(([x, y]) => `${r(x)} ${r(y)}`).join("L") + "Z";
 const rect = (x0: number, y0: number, x1: number, y1: number) => poly([[x0, y0], [x1, y0], [x1, y1], [x0, y1]]);
+/** A polyline drawn as a band k thick, as one outline. */
+function stroke(pts: [number, number][], k: number) {
+  const side = (sgn: number) => pts.map((p, i) => {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
+    return [p[0] - (dy / l) * k * sgn, p[1] + (dx / l) * k * sgn] as [number, number];
+  });
+  return poly([...side(1), ...side(-1).reverse()]);
+}
 /** A plus as one outline (so evenodd fill leaves no hole where the bars cross), optionally turned. */
 function cross(cx: number, cy: number, a: number, k: number, turn = 0) {
   const pts: [number, number][] = [[-k, -a], [k, -a], [k, -k], [a, -k], [a, k], [k, k], [k, a], [-k, a], [-k, k], [-a, k], [-a, -k], [-k, -k]];
@@ -48,9 +58,31 @@ export function eyePath(side: "L" | "R", e: Eye): string {
     case "minus": return rect(cx - 26, cy - 8, cx + 26, cy + 8);
     case "divide": return rect(cx - 26, cy - 7, cx + 26, cy + 7) + rect(cx - 8, cy - 33, cx + 8, cy - 17) + rect(cx - 8, cy + 17, cx + 8, cy + 33);
     case "equals": return rect(cx - 26, cy - 20, cx + 26, cy - 6) + rect(cx - 26, cy + 6, cx + 26, cy + 20);
+    case "percent": return rect(cx - 26, cy - 26, cx - 10, cy - 10) + rect(cx + 10, cy + 10, cx + 26, cy + 26) + stroke([[cx - 24, cy + 28], [cx + 24, cy - 28]], 6);
+    case "sqrt": return stroke([[cx - 30, cy + 2], [cx - 18, cy + 2], [cx - 6, cy + 28], [cx + 8, cy - 26], [cx + 30, cy - 26]], 6);
+    case "approx": return stroke([[cx - 28, cy - 8], [cx - 12, cy - 18], [cx + 12, cy - 6], [cx + 28, cy - 16]], 6) + stroke([[cx - 28, cy + 16], [cx - 12, cy + 6], [cx + 12, cy + 18], [cx + 28, cy + 8]], 6);
+    case "lt": return stroke([[cx + 22, cy - 28], [cx - 22, cy], [cx + 22, cy + 28]], 7);
+    case "gt": return stroke([[cx - 22, cy - 28], [cx + 22, cy], [cx - 22, cy + 28]], 7);
+    case "plusminus": return cross(cx, cy - 10, 20, 7) + rect(cx - 22, cy + 20, cx + 22, cy + 34);
+    case "pi": return rect(cx - 30, cy - 26, cx + 30, cy - 12) + rect(cx - 18, cy - 12, cx - 4, cy + 28) + rect(cx + 6, cy - 12, cx + 20, cy + 28);
+    case "power": return stroke([[cx - 26, cy + 26], [cx - 10, cy - 8], [cx + 6, cy + 26]], 6) + rect(cx + 14, cy - 30, cx + 30, cy - 14);
+    case "wave": {
+      // blocky waveform: five chunky bars per side spanning the whole eye row, heights snapped to 12-unit steps
+      const from = side === "L" ? 151 : MIDX + 3, ph = e.beam ?? 0;
+      let d = "";
+      for (let i = 0; i < 5; i++) {
+        const x = from + i * 21, gx = x - 150;
+        const amp = Math.abs(Math.sin(gx * 0.035 + ph * 2.1) * 0.6 + Math.sin(gx * 0.08 - ph * 3.3) * 0.4);
+        const bh = Math.max(12, Math.round((amp * 92) / 12) * 12);
+        d += rect(x, CY - bh / 2, x + 15, CY + bh / 2);
+      }
+      return d;
+    }
     case "scan": {
-      const s = 9, by = y0 + s + (h - 2 * s - 12) * (e.beam ?? 0.5);
-      return rect(x0, y0, x1, y1) + rect(x0 + s, y0 + s, x1 - s, y1 - s) + rect(x0 + s, by, x1 - s, by + 12);
+      // a lit eye with a dark scanline sweeping through it, a fainter line trailing behind (cut out with evenodd)
+      const by = y0 + 6 + (h - 20) * (e.beam ?? 0.5), trail = (e.lid?.[0] ?? 0) >= 0 ? -16 : 16;
+      const ty = Math.min(y1 - 6, Math.max(y0 + 4, by + trail));
+      return rect(x0, y0, x1, y1) + rect(x0, by, x1, by + 8) + rect(x0, ty, x1, ty + 3);
     }
     case "ring": {
       const s = 16;
@@ -74,7 +106,7 @@ export function eyePath(side: "L" | "R", e: Eye): string {
 
 const both = (e: Eye): Face => ({ L: e, R: e });
 
-export const MOODS = ["idle", "happy", "laughing", "love", "wink", "surprised", "thinking", "searching", "confused", "nervous", "sad", "angry", "talking", "sleeping", "celebrate", "serious", "calculating", "puzzling", "jotting", "drawing", "hearing", "announcing", "posting", "catching", "syncing", "waiting", "ringing", "low-battery", "scanning", "orbiting", "juggling"] as const;
+export const MOODS = ["idle", "happy", "laughing", "love", "wink", "surprised", "thinking", "searching", "confused", "nervous", "sad", "angry", "talking", "sleeping", "celebrate", "serious", "calculating", "puzzling", "jotting", "drawing", "hearing", "announcing", "posting", "catching", "syncing", "waiting", "ringing", "low-battery", "scanning", "orbiting", "voice", "bored"] as const;
 export type Mood = (typeof MOODS)[number];
 export const moodLabel = (m: Mood) => (m === "low-battery" ? "Low battery" : m[0].toUpperCase() + m.slice(1));
 
@@ -107,9 +139,10 @@ export const FACES: Record<Mood, Face> = {
   waiting: both({ kind: "line" }),
   ringing: { L: { kind: "ring", sx: 0.8, sy: 0.8 }, R: { kind: "ring", sx: 0.8, sy: 0.8, dy: -0.1 } },
   "low-battery": both({ lid: [0.68, 0.68] }),
-  scanning: both({ kind: "scan", beam: 0.3 }),
+  scanning: both({ kind: "scan", beam: 0.35 }),
+  voice: both({ kind: "wave", beam: 0.6 }),
+  bored: { L: { lid: [0.5, 0.5], dx: 0.18, dy: 0.06 }, R: { lid: [0.5, 0.5], dx: 0.18, dy: 0.06 } },
   orbiting: { L: { kind: "dot", dx: -0.5, dy: -0.2 }, R: { kind: "dot", dx: 0.5, dy: 0.2 } },
-  juggling: { L: { sy: 0.55, dy: -0.2 }, R: { sy: 0.55, dy: 0.2 } },
 };
 
 // ── Animated moods: a face per moment t (seconds). Moods not listed here hold still.
@@ -132,7 +165,7 @@ function keys(list: Face[], t: number, hold: number, move: number): Face {
   return { L: lerpEye(a.L, b.L, k), R: lerpEye(a.R, b.R, k) };
 }
 const MID = (CX.L + CX.R) / 2;
-const SYMBOLS: EyeKind[] = ["plus", "minus", "x", "divide", "equals"];
+const SYMBOLS: EyeKind[] = ["plus", "minus", "x", "divide", "equals", "percent", "sqrt", "approx", "lt", "gt", "plusminus", "pi", "power"];
 const THINK: Face[] = [
   both({ sy: 0.62, dy: -0.19, dx: -0.2 }),
   both({ sy: 0.62, dy: -0.19, dx: 0.2 }),
@@ -140,7 +173,14 @@ const THINK: Face[] = [
   FACES.confused,
 ];
 
-export const ANIMATED = new Set<Mood>(["orbiting", "calculating", "searching", "scanning", "thinking"]);
+const BORED: Face[] = [
+  both({ lid: [0.5, 0.5], dx: 0.18, dy: 0.06 }),
+  both({ lid: [0.5, 0.5], dx: -0.18, dy: 0.06 }),
+  both({ lid: [0.72, 0.72], dx: -0.05, dy: 0.1 }),
+  both({ lid: [0.5, 0.5], dx: 0.05, dy: 0.06 }),
+];
+
+export const ANIMATED = new Set<Mood>(["orbiting", "calculating", "searching", "scanning", "thinking", "voice", "bored"]);
 export function faceAt(mood: Mood, t: number): Face {
   switch (mood) {
     case "orbiting": {
@@ -152,15 +192,24 @@ export function faceAt(mood: Mood, t: number): Face {
       return { L: at(Math.PI, "L"), R: at(0, "R") };
     }
     case "calculating": {
-      const i = Math.floor(t / 0.7);
-      return { L: { kind: SYMBOLS[i % SYMBOLS.length] }, R: { kind: SYMBOLS[(i + 2) % SYMBOLS.length] } };
+      // one eye at a time: left, right, left, right…
+      const k = Math.floor(t / 0.5), n = SYMBOLS.length;
+      return { L: { kind: SYMBOLS[(2 * Math.floor((k + 1) / 2)) % n] }, R: { kind: SYMBOLS[(2 * Math.floor(k / 2) + 1) % n] } };
     }
     case "searching": {
       const dx = 0.32 * Math.max(-1, Math.min(1, Math.sin(t * 1.7) * 1.8));
       return both({ sy: 0.7, dx, dy: Math.sin(t * 0.9) * 0.06 });
     }
-    case "scanning": return both({ kind: "scan", beam: (1 - Math.cos(t * 2.4)) / 2 });
+    case "scanning": {
+      // sweep down then back up; the trail follows on the side the beam came from
+      const ph = t * 2.2, beam = (1 - Math.cos(ph)) / 2, down = Math.sin(ph) >= 0;
+      return both({ kind: "scan", beam, lid: [down ? 0 : -1, 0] });
+    }
     case "thinking": return keys(THINK, t, 0.9, 0.45);
+    // steps of 0.12s keep the bars blocky in time too
+    case "voice": return both({ kind: "wave", beam: Math.floor(t / 0.12) * 0.12 });
+    // slow sideways glances and a heavy-lidded sag
+    case "bored": return keys(BORED, t, 1.8, 1.1);
     default: return FACES[mood];
   }
 }
@@ -180,7 +229,7 @@ export const PRESETS: Preset[] = [
   { id: "paper", name: "Paper", arch: "EEEEEE, CFCFCF, EEEEEE", eyes: "1A32EC" },
   { id: "bubblegum", name: "Bubblegum", arch: "FF8FC8, F0479A, FF8FC8", eyes: "FFF0F7" },
   { id: "ocean", name: "Ocean", arch: "4FC3F7, 0277BD, 4FC3F7", eyes: "FFE066" },
-  { id: "lava", name: "Lava", arch: "FF7A00, D7263D, FF7A00", eyes: "FFF3B0" },
+  { id: "gold", name: "Gold", arch: "F2D06B, C99A2E, F2D06B", eyes: "1A1A1A" },
   { id: "lilac", name: "Lilac", arch: "C9B6FF, 9B7BFF, C9B6FF", eyes: "2A1A5E" },
   { id: "slate", name: "Slate", arch: "9AA5B1, 5B6774, 9AA5B1", eyes: "7CFFB2" },
 ];

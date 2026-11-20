@@ -140,3 +140,8 @@ button { font: inherit; color: inherit; }
 .bay > * { flex-shrink: 0; }
 .snippet { min-height: 150px; }
 .paste { min-height: 96px; }
+.forms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.forms button { display: grid; justify-items: center; gap: 3px; padding: 8px 2px 6px; background: var(--chip); border: 1px solid var(--line); cursor: pointer; font: 10px var(--mono); color: var(--muted); }
+.forms button:hover { border-color: var(--line-2); color: var(--paper); }
+.forms button[aria-pressed="true"] { border-color: var(--eye); color: var(--paper); }
+.seg.half { display: grid; grid-template-columns: 1fr 1fr; }

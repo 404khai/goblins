@@ -2,10 +2,11 @@
 // eyes tracking the pointer; the right bay holds mood, shape, arch colours, eyes, ground and export.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Astrid, type Shape } from "./Astrid";
+import { FORMS, FORM_LABEL, type Corners, type Form } from "./forms";
 import { MOODS, PRESETS, formatStops, moodLabel, parseStops, type Mood } from "./faces";
 
-interface Unit { name: string; mood: Mood; shape: Shape; top: string[]; bottom: string[]; linked: boolean; eyes: string; middle: string[]; ground: string | null }
-const DEFAULT: Unit = { name: "Astrid", mood: "idle", shape: "arches", top: ["#4459F9", "#1A32EC", "#4459F9"], bottom: ["#4459F9", "#1A32EC", "#4459F9"], linked: true, eyes: "#00F7D5", middle: ["#121212"], ground: "#121212" };
+interface Unit { name: string; mood: Mood; form: Form; corners: Corners; shape: Shape; top: string[]; bottom: string[]; linked: boolean; eyes: string; middle: string[]; ground: string | null }
+const DEFAULT: Unit = { name: "Astrid", mood: "idle", form: "classic", corners: "curved", shape: "arches", top: ["#4459F9", "#1A32EC", "#4459F9"], bottom: ["#4459F9", "#1A32EC", "#4459F9"], linked: true, eyes: "#00F7D5", middle: ["#121212"], ground: "#121212" };
 const GROUNDS: { label: string; value: string | null }[] = [{ label: "Black", value: "#121212" }, { label: "Paper", value: "#EEEEEE" }, { label: "None", value: null }];
 const STORE = "astrid.studio.v1";
 const SHAPE_LABEL: Record<Shape, string> = { arches: "Arches", full: "Full", dual: "Dual" };
@@ -19,6 +20,8 @@ function sanitize(v: unknown): Unit {
   return {
     name: typeof o.name === "string" ? o.name.slice(0, 16) : DEFAULT.name,
     mood: MOODS.includes(o.mood as Mood) ? (o.mood as Mood) : "idle",
+    form: FORMS.includes(o.form as Form) ? (o.form as Form) : "classic",
+    corners: o.corners === "sharp" ? "sharp" : "curved",
     shape: o.shape === "full" || o.shape === "dual" ? o.shape : "arches",
     middle: stops(o.middle, DEFAULT.middle),
     top, bottom: stops(o.bottom ?? o.arch, top),
@@ -27,7 +30,7 @@ function sanitize(v: unknown): Unit {
     ground: o.ground === null ? null : hex(o.ground, DEFAULT.ground!),
   };
 }
-const toJSON = (u: Unit) => JSON.stringify({ $schema: "astrid/mark@1", name: u.name, mood: u.mood, shape: u.shape, top: formatStops(u.top), bottom: formatStops(u.bottom), eyes: formatStops([u.eyes]), middle: formatStops(u.middle), ground: u.ground && formatStops([u.ground]) }, null, 2);
+const toJSON = (u: Unit) => JSON.stringify({ $schema: "astrid/mark@1", name: u.name, mood: u.mood, form: u.form, corners: u.corners, shape: u.shape, top: formatStops(u.top), bottom: formatStops(u.bottom), eyes: formatStops([u.eyes]), middle: formatStops(u.middle), ground: u.ground && formatStops([u.ground]) }, null, 2);
 function load(): Unit {
   try { if (location.hash.startsWith("#m=")) return sanitize(JSON.parse(decodeURIComponent(location.hash.slice(3)))); } catch {}
   try { return sanitize(JSON.parse(localStorage.getItem(STORE) ?? "null") ?? DEFAULT); } catch { return DEFAULT; }
@@ -90,8 +93,9 @@ export default function App() {
   const cycle = (d: number) => { const m = MOODS[(MOODS.indexOf(u.mood) + d + MOODS.length) % MOODS.length]; set({ mood: m }, `mood → ${m}`); };
   const shuffle = () => {
     const p = PRESETS[Math.floor(Math.random() * PRESETS.length)];
-    const m = MOODS[Math.floor(Math.random() * MOODS.length)];
-    set({ top: parseStops(p.arch)!, bottom: parseStops(p.arch)!, linked: true, eyes: parseStops(p.eyes)![0], mood: m }, `shuffled → ${p.name.toLowerCase()} · ${m}`);
+    const pick = <T,>(list: readonly T[]) => list[Math.floor(Math.random() * list.length)];
+    const m = pick(MOODS), form = pick(FORMS), shape = pick(["arches", "full", "dual"] as Shape[]), corners = pick(["curved", "sharp"] as Corners[]);
+    set({ top: parseStops(p.arch)!, bottom: parseStops(p.arch)!, linked: true, eyes: parseStops(p.eyes)![0], mood: m, form, shape, corners }, `shuffled → ${form} ${shape} ${corners} · ${p.name.toLowerCase()} · ${m}`);
   };
   const build = (text: string) => {
     try { const next = sanitize(JSON.parse(text)); setU(next); push(`built ${next.name.toLowerCase()}`); return true; }
@@ -144,7 +148,7 @@ export default function App() {
     return () => { removeEventListener("keydown", onKey); removeEventListener("paste", onPaste); };
   }, []);
 
-  const mark = { top: u.top, bottom: u.bottom, eyes: u.eyes, shape: u.shape, middle: u.middle };
+  const mark = { top: u.top, bottom: u.bottom, eyes: u.eyes, shape: u.shape, form: u.form, corners: u.corners, middle: u.middle };
   const accent = u.top[Math.floor(u.top.length / 2)];
 
   return (
@@ -162,7 +166,7 @@ export default function App() {
             <input id="name" maxLength={16} spellCheck={false} value={u.name} onChange={(e) => set({ name: e.target.value })} onBlur={() => push(`renamed → ${u.name.toLowerCase()}`)} />
           </label>
           <dl className="spec">
-            <div><dt>Shape</dt><dd>{SHAPE_LABEL[u.shape]}</dd></div>
+            <div><dt>Shape</dt><dd>{FORM_LABEL[u.form]} · {SHAPE_LABEL[u.shape]} · {u.corners}</dd></div>
             {u.shape === "dual" && <div><dt>Middle</dt><dd>{formatStops(u.middle)}</dd></div>}
             <div><dt>Top</dt><dd>{formatStops(u.top)}</dd></div>
             <div><dt>Bottom</dt><dd>{formatStops(u.bottom)}</dd></div>
@@ -177,7 +181,7 @@ export default function App() {
             {saved.map((s, i) => (
               <li key={i}>
                 <button type="button" onClick={() => { setU(s); push(`loaded ${s.name.toLowerCase()}`); }}>
-                  <Astrid top={s.top} bottom={s.bottom} eyes={s.eyes} shape={s.shape} middle={s.middle} mood={s.mood} size={30} background={s.ground} />
+                  <Astrid top={s.top} bottom={s.bottom} eyes={s.eyes} shape={s.shape} form={s.form} corners={s.corners} middle={s.middle} mood={s.mood} size={30} background={s.ground} />
                   <span className="who">{s.name}</span>
                   <span className="n">{moodLabel(s.mood)}</span>
                 </button>
@@ -205,7 +209,7 @@ export default function App() {
             }}
             onPointerLeave={() => setLook({ x: 0, y: 0 })}>
             <Astrid {...mark} mood={u.mood} size={560} look={look} blink animate title={`${u.name}, ${moodLabel(u.mood)}`} />
-            <div className="hud hud-top"><span className="readout">{u.shape.toUpperCase()} · {u.mood.toUpperCase()}</span><span>{u.ground ? formatStops([u.ground]) : "TRANSPARENT"}</span></div>
+            <div className="hud hud-top"><span className="readout">{u.form.toUpperCase()} · {u.shape.toUpperCase()} · {u.mood.toUpperCase()}</span><span>{u.ground ? formatStops([u.ground]) : "TRANSPARENT"}</span></div>
             <p className="hud hud-bottom">The eyes follow your pointer · ← → change mood · R shuffles</p>
           </div>
           <div className="deck">
@@ -232,11 +236,26 @@ export default function App() {
             ))}
           </div>
 
-          <Head index="05" title="Shape" />
+          <Head index="05" title="Shape" aside={`${FORMS.length} forms`} />
+          <div className="forms">
+            {FORMS.map((f) => (
+              <button key={f} id={`form-${f}`} type="button" aria-pressed={u.form === f} onClick={() => set({ form: f }, `form → ${f}`)}>
+                <Astrid {...mark} form={f} mood={u.mood} size={40} />
+                <span>{FORM_LABEL[f]}</span>
+              </button>
+            ))}
+          </div>
           <div className="seg wide" role="group" aria-label="Shape">
             {(["arches", "full", "dual"] as Shape[]).map((s) => (
               <button key={s} type="button" aria-pressed={u.shape === s} onClick={() => set({ shape: s }, `shape → ${s}`)}>
                 <Astrid {...mark} mood={u.mood} shape={s} size={28} /> {SHAPE_LABEL[s]}
+              </button>
+            ))}
+          </div>
+          <div className="seg half" role="group" aria-label="Corners">
+            {(["curved", "sharp"] as Corners[]).map((c) => (
+              <button key={c} type="button" id={`corners-${c}`} aria-pressed={u.corners === c} onClick={() => set({ corners: c }, `corners → ${c}`)}>
+                <Astrid {...mark} corners={c} mood={u.mood} size={28} /> {c === "curved" ? "Curved" : "Sharp"}
               </button>
             ))}
           </div>
@@ -255,7 +274,7 @@ export default function App() {
               const on = formatStops(u.top) === formatStops(arch) && formatStops(u.bottom) === formatStops(arch) && u.eyes === eyes;
               return (
                 <button key={p.id} type="button" aria-pressed={on} title={`${p.name}: ${p.arch} / ${p.eyes}`} onClick={() => set({ top: arch, bottom: arch, linked: true, eyes }, `palette → ${p.name.toLowerCase()}`)}>
-                  <Astrid top={arch} bottom={arch} eyes={eyes} shape={u.shape} middle={u.middle} mood={u.mood} size={34} />
+                  <Astrid top={arch} bottom={arch} eyes={eyes} shape={u.shape} form={u.form} corners={u.corners} middle={u.middle} mood={u.mood} size={34} />
                   <span>{p.name}</span>
                 </button>
               );
